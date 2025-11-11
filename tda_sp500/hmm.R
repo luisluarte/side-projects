@@ -20,15 +20,12 @@ identity <- function(df) {
 
 ## initial state ----
 states <- c("bull", "bear", "sideways")
-initial_state_moprhism_uniform <- function(state_names) {
+initial_state_morphism_uniform <- function(state_names) {
   # state are expressed as characters
   checkmate::assert_character(state_names, all.missing = FALSE)
   # more than one state required
   checkmate::assert_true(length(state_names) >= 1)
-  checkmate::assert_true(c(
-    checkmate::assert_character()(state_names),
-    data.table::uniqueN(state_names) == length(state_names)
-  ))
+  checkmate::assert_character(state_names, unique = TRUE)
 
   # cardinality of state set (S)
   n_states <- data.table::uniqueN(state_names)
@@ -37,7 +34,7 @@ initial_state_moprhism_uniform <- function(state_names) {
   uniform_prob <- 1 / n_states
 
   # pi is the codomain output Dist(S)
-  pi_vector <- rep(uniform_prob, state_names)
+  pi_vector <- rep(uniform_prob, n_states)
   names(pi_vector) <- state_names
 
   # enforce codomain properties
