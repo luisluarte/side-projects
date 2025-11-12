@@ -827,6 +827,62 @@ get_bitcoin_price_series <- function(ticker,
   return(full_history_df)
 }
 
+# generate initial params ----
+generate_initial_parameters <- function(observations_vec,
+                                        covariates_df,
+                                        state_names) {
+  checkmate::assert_numeric(observations_vec)
+  checkmate::assert_data_frame(covariates_df)
+  checkmate::assert_character(state_names,
+    fixed = c("bull", "bear", "sideways")
+  )
+
+  initial_params <- initial_state_morphism_uniform(state_names)
+
+  kmeans_result <- kmeans(observations_vec, centers = 3, nstart = 25)
+  cluster_centers <- kmeans_result$centers
+
+  cluster_map <- setNames(
+    order(cluster_centers),
+    c("bear", "sideways", "bull")
+  )[state_names]
+
+  initial_emission_params <- purrr::map(
+    cluster_map, function(cluster_id) {
+      cluster_data <- observations_vec[kmeans_result$cluster == cluster_id]
+
+      list(
+        mean = mean(cluster_data),
+        sd = sd(cluster_data)
+      )
+    }
+  )
+  names(initial_emission_params) <- state_names
+
+  predictor_names <- colnames(covariates_df)
+
+  zero_coef_vec <- c(
+    intercept = 0.0,
+    setNames(
+      rep(0.0, length(predictor_names)),
+      predictor_names
+    )
+  )
+
+  initial_beta_params <- purrr::map(state_names, function(from_state) {
+    to_list <- purrr::map(state_names, ~zero_coef_vec)
+    names(to_list) <- paste0("to_", state_names)
+    to_list
+  })
+  names(initial_beta_params) <- state_names
+
+  list(
+    initial_params = initial_params,
+    initial_emission_params = initial_emission_params,
+    initial_beta_params = initial_beta_params
+  )
+}
+
 data_out <- get_bitcoin_price_series(
   ticker = "BTCUSDT",
   source = "binance",
