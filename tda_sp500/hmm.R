@@ -78,12 +78,15 @@ emission_morphism <- function(observation,
   log_density_vector
 }
 
+# soft-max morphism ----
 softmax_morphism <- function(logits) {
+  checkmate::assert_numeric(logits, any.missing = FALSE, min.len = 1)
   stable_logits <- logits - max(logits)
   exps <- exp(stable_logits)
-  exp / sum(exps)
+  exps / sum(exps)
 }
 
+# dynamic_transition_morphism ----
 dynamic_transition_morphism <- function(covariates_t,
                                         beta_params,
                                         state_names) {
@@ -94,7 +97,7 @@ dynamic_transition_morphism <- function(covariates_t,
 
   covariates_t <- c(intercept = 1.0, covariates_t)
 
-  transition_rows_list <- purrr:map(state_names, function(from_state) {
+  transition_rows_list <- purrr::map(state_names, function(from_state) {
     betas_for_row <- beta_params[[from_state]]
 
     linear_predictors <- purrr::map_dbl(betas_for_row, function(beta_vector) {
@@ -107,22 +110,559 @@ dynamic_transition_morphism <- function(covariates_t,
 
     softmax_row
   })
+
+  transition_matrix <- do.call(rbind, transition_rows_list)
+
+  rownames(transition_matrix) <- state_names
+  colnames(transition_matrix) <- state_names
+
+  checkmate::assert_matrix(
+    transition_matrix,
+    mode = "numeric",
+    nrows = length(state_names),
+    ncols = length(state_names)
+  )
+
+  row_sums <- rowSums(transition_matrix)
+  checkmate::assert_true(all(abs(row_sums - 1.0) < 1e-6))
+
+  transition_matrix
+}
+
+# forward step algorithm ----
+forward_step_morphism <- function(alpha_scaled_prev,
+                                  a_t,
+                                  b_log_vec,
+                                  state_names) {
+  checkmate::assert_numeric(alpha_scaled_prev,
+    len = length(state_names),
+    names = "named"
+  )
+  checkmate::assert_true(abs(sum(alpha_scaled_prev) - 1.0) < 1e-6)
+  checkmate::assert_matrix(
+    a_t,
+    mode = "numeric",
+    nrows = length(state_names),
+    ncols = length(state_names)
+  )
+  checkmate::assert_numeric(
+    b_log_vec,
+    len = length(state_names),
+    names = "named"
+  )
+  checkmate::assert_character(state_names)
+
+  # predict transition
+  alpha_predicted <- alpha_scaled_prev %*% a_t
+  alpha_predicted_vec <- setNames(as.vector(alpha_predicted), state_names)
+
+  # update emissions
+  b_vec <- exp(b_log_vec[state_names])
+
+  # P(S_t, O_t | O_{1:t-1})
+  alpha_unscaled <- alpha_predicted_vec * b_vec
+
+  # scale
+  marginal_likelihood_t <- sum(alpha_unscaled)
+
+  # P(S_t | O_{1:t})
+  alpha_scaled_next <- alpha_unscaled / marginal_likelihood_t
+
+  # log likelihood
+  log_likelihood_t <- log(marginal_likelihood_t)
+
+  checkmate::assert_numeric(
+    alpha_scaled_next,
+    len = length(state_names),
+    names = "named"
+  )
+  checkmate::assert_true(abs(sum(alpha_scaled_next) - 1.0) < 1e-6)
+  checkmate::assert_number(log_likelihood_t)
+
+  list(
+    alpha_scaled = alpha_scaled_next,
+    log_likelihood = log_likelihood_t
+  )
+}
+
+# backward step algorithm ----
+backward_step_morphism <- function(beta_scaled_next,
+                                   a_t_next,
+                                   b_log_vec_next,
+                                   log_likelihood_next,
+                                   state_names) {
+  checkmate::assert_numeric(
+    beta_scaled_next,
+    len = length(state_names),
+    names = "named"
+  )
+  checkmate::assert_matrix(
+    a_t_next,
+    mode = "numeric",
+    nrows = length(state_names),
+    ncols = length(state_names)
+  )
+  checkmate::assert_numeric(
+    b_log_vec_next,
+    len = length(state_names),
+    names = "named"
+  )
+  checkmate::assert_number(log_likelihood_next)
+  checkmate::assert_character(state_names)
+
+  b_vec_next <- exp(b_log_vec_next[state_names])
+
+  payload_vec <- b_vec_next * beta_scaled_next
+
+  unscaled_beta_prev <- a_t_next %*% as.matrix(payload_vec)
+
+  beta_scaled_prev <- unscaled_beta_prev / exp(log_likelihood_next)
+
+  beta_scaled_prev_vec <- setNames(as.vector(beta_scaled_prev), state_names)
+
+  checkmate::assert_numeric(
+    beta_scaled_prev_vec,
+    len = length(state_names),
+    names = "named"
+  )
+
+  beta_scaled_prev_vec
+}
+
+# allocation morphism ----
+allocation_morphism <- function(regime_probabilities,
+                                regime_allocations) {
+  checkmate::assert_numeric(regime_probabilities, names = "named")
+  checkmate::assert_list(regime_allocations, names = "named")
+
+  checkmate::assert_true(abs(sum(regime_probabilities) - 1.0) < 1e-6)
+
+  checkmate::assert_subset(
+    names(regime_probabilities),
+    names(regime_allocations)
+  )
+
+  weighted_alloc_list <- purrr::map(names(regime_probabilities), function(state) {
+    prob <- regime_probabilities[[state]]
+    alloc_vector <- regime_allocations[[state]]
+
+    checkmate::assert_numeric(alloc_vector)
+
+    prob * alloc_vector
+  })
+
+  blended_allocation_vector <- Reduce("+", weighted_alloc_list)
+
+  checkmate::assert_numeric(blended_allocation_vector, names = "named")
+  checkmate::assert_true(abs(sum(blended_allocation_vector) - 1.0) < 1e-6)
+
+  blended_allocation_vector
+}
+
+# run forward pass
+run_forward_pass <- function(observations_vec,
+                             covariates_df,
+                             state_names,
+                             initial_params,
+                             emission_params,
+                             beta_params) {
+  n_obs <- length(observations_vec)
+  n_states <- length(state_names)
+  checkmate::assert_data_frame(covariates_df, nrows = n_obs)
+
+  alpha_matrix <- matrix(
+    0.0,
+    nrow = n_obs,
+    ncol = n_states,
+    dimnames = list(NULL, state_names)
+  )
+
+  log_likelihood_vec <- numeric(n_obs)
+
+  b_log_vec_t1 <- emission_morphism(
+    observations_vec[1],
+    state_names,
+    emission_params
+  )
+
+  alpha_unscaled_t1 <- initial_params * exp(b_log_vec_t1[state_names])
+
+  marginal_likelihood_t1 <- sum(alpha_unscaled_t1)
+  log_likelihood_vec[1] <- log(marginal_likelihood_t1)
+
+  alpha_matrix[1, ] <- alpha_unscaled_t1 / marginal_likelihood_t1
+
+  if (n_obs < 2) {
+    return(list(
+      alpha_matrix = alpha_matrix,
+      total_log_likelihood = log_likelihood_vec[1]
+    ))
+  }
+
+  for (t in 2:n_obs) {
+    alpha_prev <- alpha_matrix[t - 1, ]
+
+    covariates_t <- as.numeric(covariates_df[t, ])
+    names(covariates_t) <- colnames(covariates_df)
+
+    a_t <- dynamic_transition_morphism(
+      covariates_t,
+      beta_params,
+      state_names
+    )
+
+    b_log_vec_t <- emission_morphism(
+      observations_vec[t],
+      state_names,
+      emission_params
+    )
+
+    step_output <- forward_step_morphism(
+      alpha_scaled_prev = alpha_prev,
+      a_t = a_t,
+      b_log_vec = b_log_vec_t,
+      state_names = state_names
+    )
+
+    alpha_matrix[t, ] <- step_output$alpha_scaled
+    log_likelihood_vec[t] <- step_output$log_likelihood
+  }
+
+  list(
+    alpha_matrix = alpha_matrix,
+    log_likelihood_vec = log_likelihood_vec,
+    total_log_likelihood = sum(log_likelihood_vec)
+  )
+}
+
+# run backward pass ----
+run_backward_pass <- function(observations_vec,
+                              covariates_df,
+                              state_names,
+                              emission_params,
+                              beta_params,
+                              log_likelihood_vec) {
+  n_obs <- length(observations_vec)
+  n_states <- length(state_names)
+  checkmate::assert_data_frame(covariates_df, nrows = n_obs)
+  checkmate::assert_numeric(log_likelihood_vec, len = n_obs)
+
+  beta_matrix <- matrix(
+    0.0,
+    nrow = n_obs,
+    ncol = n_states,
+    dimnames = list(NULL, state_names)
+  )
+
+  beta_matrix[n_obs, ] <- 1.0
+
+  if (n_obs < 2) {
+    return(beta_matrix)
+  }
+
+  for (t in (n_obs - 1):1) {
+    beta_next <- beta_matrix[t + 1, ]
+
+    covariates_next <- as.numeric(covariates_df[t + 1, ])
+    names(covariates_next) <- colnames(covariates_df)
+
+    a_t_next <- dynamic_transition_morphism(
+      covariates_next,
+      beta_params,
+      state_names
+    )
+
+    b_log_vec_next <- emission_morphism(
+      observations_vec[t + 1],
+      state_names,
+      emission_params
+    )
+
+    log_lik_next <- log_likelihood_vec[t + 1]
+
+    beta_prev_vec <- backward_step_morphism(
+      beta_scaled_next = beta_next,
+      a_t_next = a_t_next,
+      b_log_vec_next = b_log_vec_next,
+      log_likelihood_next = log_lik_next,
+      state_names = state_names
+    )
+
+    beta_matrix[t, ] <- beta_prev_vec
+  }
+
+  beta_matrix
+}
+
+# gamma morphism ----
+calculate_smoothed_gamma <- function(alpha_matrix,
+                                     beta_matrix,
+                                     state_names) {
+  checkmate::assert_matrix(alpha_matrix,
+    mode = "numeric",
+    ncols = length(state_names)
+  )
+
+  alpha_dims <- dim(alpha_matrix)
+
+  checkmate::assert_matrix(beta_matrix,
+    mode = "numeric",
+    nrows = alpha_dims[1],
+    ncols = alpha_dims[2]
+  )
+
+  gamma_unscaled <- alpha_matrix * beta_matrix
+
+  row_sums <- rowSums(gamma_unscaled)
+
+  row_sums[row_sums == 0] <- 1.0
+
+  gamma_matrix <- sweep(gamma_unscaled, MARGIN = 1, STATS = row_sums, FUN = "/")
+
+  checkmate::assert_matrix(gamma_matrix,
+    mode = "numeric",
+    nrows = alpha_dims[1],
+    ncols = alpha_dims[2]
+  )
+
+  new_row_sums <- rowSums(gamma_matrix)
+  checkmate::assert_true(all(abs(new_row_sums - 1.0) < 1e-6))
+
+  colnames(gamma_matrix) <- state_names
+
+  gamma_matrix
+}
+
+# smoothed xi
+calculate_smoothed_xi <- function(alpha_matrix,
+                                  beta_matrix,
+                                  observations_vec,
+                                  covariates_df,
+                                  state_names,
+                                  emission_params,
+                                  beta_params) {
+  n_obs <- length(observations_vec)
+  n_states <- length(state_names)
+  checkmate::assert_matrix(alpha_matrix,
+    mode = "numeric",
+    nrows = n_obs,
+    ncols = n_states
+  )
+  checkmate::assert_matrix(beta_matrix,
+    mode = "numeric",
+    nrows = n_obs,
+    ncols = n_states
+  )
+  checkmate::assert_data_frame(covariates_df, nrows = n_obs)
+
+  xi_array <- array(
+    0.0,
+    dim = c(n_obs - 1, n_states, n_states),
+    dimnames = list(
+      t = 1:(n_obs - 1),
+      from = state_names,
+      to = state_names
+    )
+  )
+
+  for (t in 1:(n_obs - 1)) {
+    alpha_t <- alpha_matrix[t, ]
+
+    covariates_next <- as.numeric(covariates_df[t + 1, ])
+    names(covariates_next) <- colnames(covariates_df)
+    a_t_next <- dynamic_transition_morphism(
+      covariates_next,
+      beta_params,
+      state_names
+    )
+
+    b_log_vec_next <- emission_morphism(
+      observations_vec[t + 1],
+      state_names,
+      emission_params
+    )
+    b_vec_next <- exp(b_log_vec_next)
+
+    beta_next <- beta_matrix[t + 1, ]
+
+    alpha_beta_prod <- alpha_t %o% beta_next
+
+    a_b_prod <- sweep(a_t_next, MARGIN = 2, STATS = b_vec_next, FUN = "*")
+
+    xi_unscaled_t <- alpha_beta_prod * a_b_prod
+
+    matrix_sum <- sum(xi_unscaled_t)
+
+    if (matrix_sum == 0) {
+      xi_array[t, , ] <- matrix(0.0, n_states, n_states)
+    } else {
+      xi_array[t, , ] <- xi_unscaled_t / matrix_sum
+    }
+  }
+
+  checkmate::assert_array(
+    mode = "numeric",
+    d = 3,
+    dim = c(n_obs - 1, n_states, n_states)
+  )
+
+  xi_array
+}
+
+# maximization step ----
+m_step_update_emissions <- function(gamma_matrix,
+                                    observations_vec,
+                                    state_names) {
+  checkmate::assert_matrix(
+    gamma_matrix,
+    mode = "numeric",
+    ncols = length(state_names),
+    nrows = length(observations_vec)
+  )
+  checkmate::assert_numeric(observations_vec)
+
+  new_emission_params <- purrr::map(state_names, function(state) {
+    gamma_t_vec <- gamma_matrix[, state]
+
+    total_weight <- sum(gamma_t_vec)
+
+    if (total_weight < 1e-9) {
+      return(list(mean = 0, sd = 1e-3))
+    }
+
+    new_mean <- sum(gamma_t_vec * observations_vec) / total_weight
+
+    new_variance <- sum(gamma_t_vec * (observations_vec - new_mean)^2) /
+      total_weight
+
+    new_sd <- sqrt(new_variance)
+    if (new_sd < 1e-9) {
+      new_sd <- 1e-9
+    }
+
+    list(mean = new_mean, sd = new_sd)
+  })
+
+  names(new_emission_params) <- state_names
+
+  checkmate::assert_list(
+    new_emission_params,
+    names = "named",
+    len = length(state_names)
+  )
+
+  new_emission_params
 }
 
 # test bed ----
 states <- c("bull", "bear", "sideways")
 example_emission_params <- list(
-  "bull" = list(mean = 0.0008, sd = 0.007),
+  "bull" = list(mean = 0.008, sd = 0.007),
   "bear" = list(mean = -0.001, sd = 0.015),
   "sideways" = list(mean = 0.0001, sd = 0.004)
 )
-obs_return <- 0.01
-log_likelihoods <- emission_morphism(
-  obs_return,
-  states,
-  example_emission_params
+example_beta_params <- list(
+  "bull" = list(
+    "to_bull" = c(intercept = 0.0),
+    "to_bear" = c(intercept = 0.5, yield_spread = -1.5, vix = 0.1),
+    "to_sideways" = c(intercept = 0.2, yield_spread = 0.5, vix = -0.05)
+  ),
+  "bear" = list(
+    "to_bull" = c(intercept = 0.1, yield_spread = 1.0, vix = -0.1),
+    "to_bear" = c(intercept = 0.0),
+    "to_sideways" = c(intercept = 0.3, yield_spread = 0.0, vix = -0.05)
+  ),
+  "sideways" = list(
+    "to_bull" = c(intercept = 0.1, yield_spread = 1.0, vix = -0.1),
+    "to_bear" = c(intercept = -0.2, yield_spread = -0.5, vix = 0.08),
+    "to_sideways" = c(intercept = 0.0)
+  )
+)
+# === Test Bed for Full Forward Pass ===
+
+# (Assuming all helper functions and example params are loaded)
+
+# 1. Create a 5-day sample dataset (tibble)
+sample_data <- tibble::tibble(
+  day = 1:5,
+  # Observations (O_t)
+  obs = c(0.01, -0.02, 0.001, -0.015, 0.005),
+
+  # Covariates (Z_t)
+  yield_spread = c(-0.005, -0.006, -0.004, -0.005, -0.002),
+  vix = c(30, 35, 33, 38, 30)
 )
 
-cat(paste("\n", states[1], "likelihoods are:", log_likelihoods[1], "\n"))
-cat(paste("\n", states[2], "likelihoods are:", log_likelihoods[2], "\n"))
-cat(paste("\n", states[3], "likelihoods are:", log_likelihoods[1], "\n"))
+# 2. Get static inputs
+pi_vector <- initial_state_morphism_uniform(states)
+
+# 3. Run the Full Forward Pass
+cat("\n--- Running Full Forward Pass (T=5) ---\n")
+
+# (Ensure softmax_morphism and dynamic_transition_morphism are fixed)
+hmm_filter_output <- run_forward_pass(
+  observations_vec = sample_data$obs,
+  covariates_df = sample_data[, c("yield_spread", "vix")],
+  state_names = states,
+  initial_params = pi_vector,
+  emission_params = example_emission_params,
+  beta_params = example_beta_params
+)
+
+cat("\n--- Output of Full Forward Pass ---\n")
+print("Total Log-Likelihood:")
+print(hmm_filter_output$total_log_likelihood)
+
+print("Filtered State Probabilities (P(S_t | O_1...t)):")
+print(hmm_filter_output$alpha_matrix)
+# === Test Bed for Full Backward Pass ===
+# (Assuming the 5-day 'sample_data' and 'hmm_filter_output'
+#  from the previous step's test bed are available)
+
+cat("\n--- Running Full Backward Pass (T=5) ---\n")
+
+# We need the scaling factors (log_likelihood_vec) from the forward pass
+log_lik_vector <- hmm_filter_output$total_log_likelihood /
+  5 # Error in previous test bed
+# Correction: The test bed should have saved the log_likelihood_vec
+# Let's assume hmm_filter_output$log_likelihood_vec exists.
+# (If not, run_forward_pass must be modified to return it)
+
+# Assuming hmm_filter_output$log_likelihood_vec is available:
+beta_matrix_output <- run_backward_pass(
+  observations_vec = sample_data$obs,
+  covariates_df = sample_data[, c("yield_spread", "vix")],
+  state_names = states,
+  emission_params = example_emission_params,
+  beta_params = example_beta_params,
+  log_likelihood_vec = hmm_filter_output$log_likelihood_vec
+)
+
+print("Backward Probabilities (Beta Matrix):")
+print(beta_matrix_output)
+cat("\n--- Running Smoothed State (Gamma) Calculation ---\n")
+
+smoothed_gamma_matrix <- calculate_smoothed_gamma(
+  hmm_filter_output$alpha_matrix,
+  beta_matrix_output,
+  states
+)
+
+print("Filtered Probabilities (Alpha - given past):")
+print(hmm_filter_output$alpha_matrix)
+
+print("Smoothed Probabilities (Gamma - given all data):")
+print(smoothed_gamma_matrix)
+
+cat("\n--- Running M-Step (Emissions) ---\n")
+
+new_params <- m_step_update_emissions(
+  smoothed_gamma_matrix,
+  sample_data$obs,
+  states
+)
+
+print("Old Emission Parameters:")
+print(example_emission_params)
+print("New (Learned) Emission Parameters:")
+print(new_params)
