@@ -632,11 +632,11 @@ run_baum_welch_training <- function(observations_vec,
                                     state_names,
                                     initial_params,
                                     initial_emission_params,
-                                    intitial_beta_params,
+                                    initial_beta_params,
                                     max_iterations = 100,
                                     tolerance = 1e-6) {
   current_emission_params <- initial_emission_params
-  current_beta_params <- intitial_beta_params
+  current_beta_params <- initial_beta_params
   log_likelihood_history <- numeric(max_iterations)
 
   checkmate::assert_character(state_names)
@@ -871,7 +871,7 @@ generate_initial_parameters <- function(observations_vec,
 
   initial_beta_params <- purrr::map(state_names, function(from_state) {
     to_list <- purrr::map(state_names, ~zero_coef_vec)
-    names(to_list) <- paste0("to_", state_names)
+    names(to_list) <- state_names
     to_list
   })
   names(initial_beta_params) <- state_names
