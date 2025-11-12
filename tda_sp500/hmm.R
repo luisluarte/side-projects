@@ -4,7 +4,8 @@ pacman::p_load(
   ggplot2,
   checkmate,
   data.table,
-  purrr
+  purrr,
+  nnet
 )
 
 
@@ -552,6 +553,174 @@ m_step_update_emissions <- function(gamma_matrix,
   )
 
   new_emission_params
+}
+
+# m step udpate transitions ----
+m_step_update_transitions <- function(xi_array,
+                                      covariates_df,
+                                      state_names) {
+  n_obs <- nrow(covariates_df)
+  n_states <- length(state_names)
+  checkmate::assert_array(
+    xi_array,
+    mode = "numeric",
+    dim = c(n_obs - 1, n_states, n_states)
+  )
+  checkmate::assert_data_frame(covariates_df)
+
+  predictors_df <- as.data.frame(covariates_df[2:n_obs, ])
+
+  new_beta_params <- purrr::map(state_names, function(from_state) {
+    response_matrix <- xi_array[, from_state, ]
+
+    if (sum(response_matrix) < 1e-9) {
+      warning(paste(
+        "state",
+        from_state,
+        "had zero probability. cannot fit model."
+      ))
+      default_betas <- purrr::map(state_names, ~ c(intercept = 0.0))
+      names(default_betas) <- state_names
+      return(default_betas)
+    }
+
+    model <- nnet::multinom(
+      response_matrix ~ .,
+      data = predictors_df,
+      trace = FALSE
+    )
+
+    coef_matrix <- t(coef(model))
+
+    calculated_states <- colnames(coef_matrix)
+
+    ref_state <- setdiff(state_names, calculated_states)[1]
+
+    ref_vector <- rep(0.0, nrow(coef_matrix))
+    names(ref_vector) <- rownames(coef_matrix)
+
+    beta_row_list <- as.list(as.data.frame(coef_matrix))
+    beta_row_list[[ref_state]] <- ref_vector
+
+    beta_row_list <- beta_row_list[state_names]
+
+    beta_row_list_renamed <- purrr::map(beta_row_list, function(b) {
+      names(b)[names(b) == "(Intercept)"] <- "intercept"
+      b
+    })
+
+    return(beta_row_list_renamed)
+  })
+
+  names(new_beta_params) <- state_names
+
+  checkmate::assert_list(
+    new_beta_params,
+    names = "named",
+    len = n_states
+  )
+
+  new_beta_params
+}
+
+# baum-welch
+run_baum_welch_training <- function(observations_vec,
+                                    covariates_df,
+                                    state_names,
+                                    initial_params,
+                                    initial_emission_params,
+                                    intitial_beta_params,
+                                    max_iterations = 100,
+                                    tolerance = 1e-6) {
+  current_emission_params <- initial_emission_params
+  current_beta_params <- intitial_beta_params
+  log_likelihood_history <- numeric(max_iterations)
+
+  checkmate::assert_character(state_names)
+
+  for (iter in 1:max_iterations) {
+    forward_output <- run_forward_pass(
+      observations_vec = observations_vec,
+      covariates_df = covariates_df,
+      state_names = state_names,
+      initial_params = initial_params,
+      beta_params = current_beta_params,
+      emission_params = current_emission_params
+    )
+
+    total_log_likelihood <- forward_output$total_log_likelihood
+    log_likelihood_history[iter] <- total_log_likelihood
+
+    beta_matrix <- run_backward_pass(
+      observations_vec = observations_vec,
+      covariates_df = covariates_df,
+      state_names = state_names,
+      emission_params = current_emission_params,
+      beta_params = current_beta_params,
+      log_likelihood_vec = forward_output$log_likelihood_vec
+    )
+
+    gamma_matrix <- calculate_smoothed_gamma(
+      forward_output$alpha_matrix,
+      beta_matrix,
+      state_names
+    )
+
+    xi_array <- calculate_smoothed_xi(
+      forward_output$alpha_matrix,
+      beta_matrix,
+      observations_vec,
+      covariates_df,
+      state_names,
+      emission_params = current_emission_params,
+      beta_params = current_beta_params,
+    )
+
+    new_emission_params <- m_step_update_emissions(
+      gamma_matrix,
+      observations_vec,
+      state_names
+    )
+
+    new_beta_params <- m_step_update_transitions(
+      xi_array,
+      covariates_df,
+      state_names
+    )
+
+    current_emission_params <- new_emission_params
+    current_beta_params <- new_beta_params
+
+    if (iter > 1) {
+      log_lik_change <- log_likelihood_history[iter] -
+        log_likelihood_history[iter - 1]
+
+      if (log_lik_change < tolerance) {
+        cat(paste(
+          "converged after",
+          iter,
+          "iteration. likelihood change:",
+          log_lik_change,
+          "\n"
+        ))
+        break
+      }
+
+      if (log_lik_change < 0) {
+        warning(paste("log-likelihood decreased at iteration",
+                      iter,
+                      ". stopping early."))
+        break
+      }
+
+    }
+  }
+
+  list(
+      optimized_emission = current_emission_params,
+      optimized_betas = current_beta_params,
+      log_likelihood_history = log_likelihood_history[1:iter]
+    )
 }
 
 # test bed ----
