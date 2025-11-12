@@ -3,7 +3,6 @@ pacman::p_load(
   tidyverse,
   ggplot2,
   checkmate,
-  data.table,
   purrr,
   nnet
 )
@@ -29,7 +28,7 @@ initial_state_morphism_uniform <- function(state_names) {
   checkmate::assert_character(state_names, unique = TRUE)
 
   # cardinality of state set (S)
-  n_states <- data.table::uniqueN(state_names)
+  n_states <- length(state_names)
 
   # compute uniform probability
   uniform_prob <- 1 / n_states
@@ -502,6 +501,7 @@ calculate_smoothed_xi <- function(alpha_matrix,
   }
 
   checkmate::assert_array(
+    xi_array,
     mode = "numeric",
     d = 3,
     dim = c(n_obs - 1, n_states, n_states)
@@ -707,20 +707,21 @@ run_baum_welch_training <- function(observations_vec,
       }
 
       if (log_lik_change < 0) {
-        warning(paste("log-likelihood decreased at iteration",
-                      iter,
-                      ". stopping early."))
+        warning(paste(
+          "log-likelihood decreased at iteration",
+          iter,
+          ". stopping early."
+        ))
         break
       }
-
     }
   }
 
   list(
-      optimized_emission = current_emission_params,
-      optimized_betas = current_beta_params,
-      log_likelihood_history = log_likelihood_history[1:iter]
-    )
+    optimized_emission = current_emission_params,
+    optimized_betas = current_beta_params,
+    log_likelihood_history = log_likelihood_history[1:iter]
+  )
 }
 
 # test bed ----
