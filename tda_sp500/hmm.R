@@ -6,7 +6,8 @@ pacman::p_load(
   purrr,
   nnet,
   cryptoQuotes,
-  lubridate
+  lubridate,
+  zoo
 )
 
 
@@ -816,10 +817,10 @@ get_bitcoin_price_series <- function(ticker,
 
   if (nrow(full_history_df) > 0) {
     full_history_df <- full_history_df[
-      !duplicated(row.names(full_history_df)),
+      !duplicated(zoo::index(full_history_df)),
     ]
     full_history_df <- full_history_df[
-      order(row.names(full_history_df)),
+      order(zoo::index(full_history_df)),
     ]
   }
 
