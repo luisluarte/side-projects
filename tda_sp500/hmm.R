@@ -4,7 +4,9 @@ pacman::p_load(
   ggplot2,
   checkmate,
   purrr,
-  nnet
+  nnet,
+  cryptoQuotes,
+  lubridate
 )
 
 
@@ -724,115 +726,112 @@ run_baum_welch_training <- function(observations_vec,
   )
 }
 
-# test bed ----
-states <- c("bull", "bear", "sideways")
-example_emission_params <- list(
-  "bull" = list(mean = 0.008, sd = 0.007),
-  "bear" = list(mean = -0.001, sd = 0.015),
-  "sideways" = list(mean = 0.0001, sd = 0.004)
-)
-example_beta_params <- list(
-  "bull" = list(
-    "to_bull" = c(intercept = 0.0),
-    "to_bear" = c(intercept = 0.5, yield_spread = -1.5, vix = 0.1),
-    "to_sideways" = c(intercept = 0.2, yield_spread = 0.5, vix = -0.05)
-  ),
-  "bear" = list(
-    "to_bull" = c(intercept = 0.1, yield_spread = 1.0, vix = -0.1),
-    "to_bear" = c(intercept = 0.0),
-    "to_sideways" = c(intercept = 0.3, yield_spread = 0.0, vix = -0.05)
-  ),
-  "sideways" = list(
-    "to_bull" = c(intercept = 0.1, yield_spread = 1.0, vix = -0.1),
-    "to_bear" = c(intercept = -0.2, yield_spread = -0.5, vix = 0.08),
-    "to_sideways" = c(intercept = 0.0)
+# return log returns
+calculate_log_returns <- function(price_series) {
+  checkmate::assert_numeric(
+    price_series,
+    all.missing = FALSE,
+    min.len = 2
   )
+
+  checkmate::assert_true(all(price_series > 0))
+
+  log_prices <- log(price_series)
+
+  log_returns <- diff(log_prices)
+
+  checkmate::assert_numeric(
+    log_returns,
+    len = (length(price_series) - 1)
+  )
+
+  log_returns
+}
+
+# get btc price series
+get_bitcoin_price_series <- function(ticker,
+                                     source = "binance",
+                                     start_date,
+                                     end_date,
+                                     batch_size = 365,
+                                     interval = "1d") {
+  checkmate::assert_string(ticker)
+  checkmate::assert_string(source)
+  checkmate::assert_date(as.Date(start_date))
+  checkmate::assert_date(as.Date(end_date))
+  checkmate::assert_integerish(batch_size, lower = 1)
+
+  current_start_date <- as.Date(start_date)
+  current_end_date <- as.Date(end_date)
+  all_data_list <- list()
+
+  while (current_end_date > current_start_date) {
+    batch_start_date <- current_end_date - lubridate::days(batch_size)
+    if (batch_start_date < current_start_date) {
+      batch_start_date <- current_start_date
+    }
+
+    cat(paste(
+      "fetching batch from",
+      batch_start_date,
+      "to",
+      current_end_date,
+      "\n"
+    ))
+
+    tryCatch(
+      {
+        batch_data <- cryptoQuotes::get_quote(
+          ticker = ticker,
+          source = source,
+          interval = "1d",
+          from = as.character(batch_start_date),
+          to = as.character(current_end_date),
+          futures = FALSE
+        )
+
+        all_data_list <- append(all_data_list, list(batch_data))
+
+        current_end_date <- batch_start_date - lubridate::days(1)
+
+        Sys.sleep(1)
+      },
+      error = function(e) {
+        warning(paste(
+          "api call failed for batch starting",
+          batch_start_date,
+          ":",
+          e$message
+        ))
+        current_end_date <<- current_start_date
+      }
+    )
+
+    if (batch_start_date == current_start_date) {
+      break
+    }
+  }
+
+  full_history_df <- do.call(rbind, all_data_list)
+
+  if (nrow(full_history_df) > 0) {
+    full_history_df <- full_history_df[
+      !duplicated(row.names(full_history_df)),
+    ]
+    full_history_df <- full_history_df[
+      order(row.names(full_history_df)),
+    ]
+  }
+
+  return(full_history_df)
+}
+
+data_out <- get_bitcoin_price_series(
+  ticker = "BTCUSDT",
+  source = "binance",
+  start_date = "2018-01-01",
+  end_date = "2026-01-01",
+  interval = "1d"
 )
-# === Test Bed for Full Forward Pass ===
-
-# (Assuming all helper functions and example params are loaded)
-
-# 1. Create a 5-day sample dataset (tibble)
-sample_data <- tibble::tibble(
-  day = 1:5,
-  # Observations (O_t)
-  obs = c(0.01, -0.02, 0.001, -0.015, 0.005),
-
-  # Covariates (Z_t)
-  yield_spread = c(-0.005, -0.006, -0.004, -0.005, -0.002),
-  vix = c(30, 35, 33, 38, 30)
-)
-
-# 2. Get static inputs
-pi_vector <- initial_state_morphism_uniform(states)
-
-# 3. Run the Full Forward Pass
-cat("\n--- Running Full Forward Pass (T=5) ---\n")
-
-# (Ensure softmax_morphism and dynamic_transition_morphism are fixed)
-hmm_filter_output <- run_forward_pass(
-  observations_vec = sample_data$obs,
-  covariates_df = sample_data[, c("yield_spread", "vix")],
-  state_names = states,
-  initial_params = pi_vector,
-  emission_params = example_emission_params,
-  beta_params = example_beta_params
-)
-
-cat("\n--- Output of Full Forward Pass ---\n")
-print("Total Log-Likelihood:")
-print(hmm_filter_output$total_log_likelihood)
-
-print("Filtered State Probabilities (P(S_t | O_1...t)):")
-print(hmm_filter_output$alpha_matrix)
-# === Test Bed for Full Backward Pass ===
-# (Assuming the 5-day 'sample_data' and 'hmm_filter_output'
-#  from the previous step's test bed are available)
-
-cat("\n--- Running Full Backward Pass (T=5) ---\n")
-
-# We need the scaling factors (log_likelihood_vec) from the forward pass
-log_lik_vector <- hmm_filter_output$total_log_likelihood /
-  5 # Error in previous test bed
-# Correction: The test bed should have saved the log_likelihood_vec
-# Let's assume hmm_filter_output$log_likelihood_vec exists.
-# (If not, run_forward_pass must be modified to return it)
-
-# Assuming hmm_filter_output$log_likelihood_vec is available:
-beta_matrix_output <- run_backward_pass(
-  observations_vec = sample_data$obs,
-  covariates_df = sample_data[, c("yield_spread", "vix")],
-  state_names = states,
-  emission_params = example_emission_params,
-  beta_params = example_beta_params,
-  log_likelihood_vec = hmm_filter_output$log_likelihood_vec
-)
-
-print("Backward Probabilities (Beta Matrix):")
-print(beta_matrix_output)
-cat("\n--- Running Smoothed State (Gamma) Calculation ---\n")
-
-smoothed_gamma_matrix <- calculate_smoothed_gamma(
-  hmm_filter_output$alpha_matrix,
-  beta_matrix_output,
-  states
-)
-
-print("Filtered Probabilities (Alpha - given past):")
-print(hmm_filter_output$alpha_matrix)
-
-print("Smoothed Probabilities (Gamma - given all data):")
-print(smoothed_gamma_matrix)
-
-cat("\n--- Running M-Step (Emissions) ---\n")
-
-new_params <- m_step_update_emissions(
-  smoothed_gamma_matrix,
-  sample_data$obs,
-  states
-)
-
-print("Old Emission Parameters:")
-print(example_emission_params)
-print("New (Learned) Emission Parameters:")
-print(new_params)
+print(head(data_out))
+print(tail(data_out))
