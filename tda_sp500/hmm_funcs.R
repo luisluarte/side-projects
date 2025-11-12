@@ -833,9 +833,9 @@ generate_initial_parameters <- function(observations_vec,
                                         state_names) {
   checkmate::assert_numeric(observations_vec)
   checkmate::assert_data_frame(covariates_df)
-  checkmate::assert_character(state_names,
-    fixed = c("bull", "bear", "sideways")
-  )
+  checkmate::assert_character(state_names)
+
+  checkmate::assert_set_equal(state_names, c("bull", "bear", "sideways"))
 
   initial_params <- initial_state_morphism_uniform(state_names)
 
@@ -882,13 +882,3 @@ generate_initial_parameters <- function(observations_vec,
     initial_beta_params = initial_beta_params
   )
 }
-
-data_out <- get_bitcoin_price_series(
-  ticker = "BTCUSDT",
-  source = "binance",
-  start_date = "2018-01-01",
-  end_date = "2026-01-01",
-  interval = "1d"
-)
-print(head(data_out))
-print(tail(data_out))
