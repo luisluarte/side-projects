@@ -9,7 +9,8 @@ pacman::p_load(
   cryptoQuotes,
   lubridate,
   zoo,
-  this.path # For sourcing
+  quantmod,
+  this.path
 )
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -50,28 +51,54 @@ if (args[1] == "FALSE") {
 
 print(tail(raw_data))
 
-# Convert to data.frame for easier handling
-raw_data_df <- data.frame(
-  Date = zoo::index(raw_data),
-  Close = raw_data$close
+cat("--- 1b. LOADING MACRO DATA ---\n")
+start_date_macro <- as.Date("2018-01-01") # Match your BTC start
+macro_data <- quantmod::getSymbols(
+  "WALCL",
+  src = "FRED",
+  from = start_date_macro,
+  to = tdy,
+  auto.assign = FALSE
 )
-raw_data_df <- raw_data %>%
-  as.data.frame() %>%
+
+print(head(macro_data))
+
+merged_xts <- merge(raw_data$close, macro_data, all = TRUE)
+
+# Fill forward the weekly WALCL data to fill NA gaps
+merged_xts$WALCL <- zoo::na.locf(merged_xts$WALCL, na.rm = FALSE)
+
+# Now create the data.frame, trim NAs from the *start*
+raw_data_df <- as.data.frame(merged_xts) %>%
   mutate(
-    Close = close,
-    Date = zoo::index(raw_data)
-  )
+    Date = zoo::index(merged_xts),
+    Close = close
+  ) %>%
+  select(Date, Close, WALCL) %>% # Keep the new column
+  stats::na.omit() # Remove NAs at the very beginning before data started
+
+print("--- Merged Data Head (with WALCL) ---")
+print(head(raw_data_df))
 
 cat("--- 2. PREPARING DATA & COVARIATES ---\n")
-observations_vec <- calculate_log_returns(raw_data_df$Close)
-covariates_df <- generate_covariates(observations_vec, window = 20)
-print("Observations...")
-print(tail(observations_vec))
-print("Covariates")
-print(tail(covariates_df))
 
-# Align the data (removes initial NAs from rolling window)
-aligned_data <- align_data(observations_vec, covariates_df)
+# This new function prepares both observations and covariates
+model_data <- generate_model_data(
+  raw_data_df,
+  vol_window = 20,
+  obs_ma_window = 50
+)
+
+print("Observations...")
+print(tail(model_data$observations_vec))
+print("Covariates")
+print(tail(model_data$covariates_df))
+
+# Align the data (this function is still needed to remove NA warmup)
+aligned_data <- align_data(
+  model_data$observations_vec,
+  model_data$covariates_df
+)
 
 cat("--- 3. GENERATING INITIAL PARAMETERS ---\n")
 initial_model_params <- generate_initial_parameters(
@@ -120,6 +147,27 @@ if (!is.null(trained_model)) {
     beta_params = trained_model$optimized_betas
   )
 
+  cat("\n--- 6a. RUNNING BACKWARD PASS for SMOOTHING ---\n")
+
+  # Run the backward pass using the final optimized parameters
+  final_beta_matrix <- run_backward_pass(
+    observations_vec = aligned_data$observations_vec,
+    covariates_df = aligned_data$covariates_df,
+    state_names = STATES,
+    emission_params = trained_model$optimized_emissions,
+    beta_params = trained_model$optimized_betas,
+    log_likelihood_vec = final_filter$log_likelihood_vec # <-- Use log-lik from forward pass
+  )
+
+  cat("--- 6b. CALCULATING SMOOTHED (GAMMA) PROBABILITIES ---\n")
+
+  # Combine forward (alpha) and backward (beta) to get smoothed (gamma)
+  final_gamma_matrix <- calculate_smoothed_gamma(
+    alpha_matrix = final_filter$alpha_matrix,
+    beta_matrix = final_beta_matrix,
+    state_names = STATES
+  )
+
   cat("\n--- 6. RE-ATTACHING DATES & PRICES ---\n")
 
   # 1. Get original dates & prices, remove first (due to calculate_log_returns)
@@ -127,7 +175,7 @@ if (!is.null(trained_model)) {
   prices_vec <- raw_data_df$Close[-1] # <-- ADDED THIS
 
   # 2. Find the same start index from align_data (to skip NA warmup)
-  first_valid_index <- which(stats::complete.cases(covariates_df))[1]
+  first_valid_index <- which(stats::complete.cases(aligned_data$covariates_df))[1]
 
   # 3. Slice the date and price vectors to match the aligned data
   aligned_dates <- dates_vec[first_valid_index:length(dates_vec)]
@@ -138,7 +186,7 @@ if (!is.null(trained_model)) {
     final_probabilities_df <- data.frame(
       Date = aligned_dates,
       Close = aligned_prices,
-      final_filter$alpha_matrix
+      final_gamma_matrix
     )
 
     print("--- Filtered Probabilities with Dates & Prices (Last 5 Days) ---")

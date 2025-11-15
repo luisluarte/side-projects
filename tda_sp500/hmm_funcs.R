@@ -662,6 +662,15 @@ run_baum_welch_training <- function(observations_vec,
 
   checkmate::assert_character(state_names)
 
+  cat("--- Starting Baum-Welch Training ---\n")
+  pb <- utils::txtProgressBar(
+    min = 0,
+    max = max_iterations,
+    style = 3, # Style 3 is a text bar: [====   ]
+    width = 50, # Width of the bar
+    char = "=" # Character to use
+  )
+
   for (iter in 1:max_iterations) {
     forward_output <- run_forward_pass(
       observations_vec = observations_vec,
@@ -714,6 +723,10 @@ run_baum_welch_training <- function(observations_vec,
 
     current_emission_params <- new_emission_params
     current_beta_params <- new_beta_params
+
+    # === NEW: Update Progress Bar ===
+    utils::setTxtProgressBar(pb, iter)
+    # === END NEW ===
 
     if (iter > 1) {
       log_lik_change <- log_likelihood_history[iter] -
@@ -931,34 +944,89 @@ generate_covariates <- function(log_returns_vec, window = 20) {
   covariates_df
 }
 
-#' @title Data Alignment Morphism
-#' @description Aligns observations and covariates by removing initial NA
-#'              rows caused by rolling window calculations.
-#' @param obs_vec The T-1 vector of log-returns.
-#' @param cov_df The T-1 data.frame of covariates.
-#' @return A list containing the aligned `observations_vec` and `covariates_df`.
+#' @title Data Alignment Morphism (Robust Version)
+#' @description Aligns observations and covariates by removing ALL rows
+#'              (initial or otherwise) that contain NA/NaN/Inf values.
+#' @param obs_vec The vector of log-returns.
+#' @param cov_df The data.frame of covariates.
+#' @return A list containing the fully cleaned `observations_vec` and `covariates_df`.
 align_data <- function(obs_vec, cov_df) {
-  # Find the index of the first row that is *not* NA
-  # which() returns the integer positions of TRUE values
-  first_valid_index <- which(stats::complete.cases(cov_df))[1]
+  # 1. Combine into a temporary data frame for easy alignment
+  #    This ensures obs and covs are checked row-by-row
+  temp_df <- data.frame(obs = obs_vec, cov_df)
 
-  if (is.na(first_valid_index)) {
-    stop("Error in align_data: No complete cases found. Check covariates.")
+  # 2. Find all row indices that are "complete"
+  #    stats::complete.cases checks for NA, NaN, and Inf in all columns
+  complete_indices <- stats::complete.cases(temp_df)
+
+  if (sum(complete_indices) == 0) {
+    stop("Error in align_data: No complete cases found after merging obs/covs.")
   }
 
+  # 3. Filter the entire data frame to keep only complete rows
+  aligned_temp_df <- temp_df[complete_indices, , drop = FALSE]
+
+  # 4. Separate back into the required vector and data frame
+  aligned_obs <- aligned_temp_df$obs
+
+  # Drop the 'obs' column (which is the first column)
+  aligned_cov <- aligned_temp_df[, -1, drop = FALSE]
+
   cat(paste(
-    "Data aligned. Trimming first",
-    first_valid_index - 1, "rows for NA warmup.\n"
+    "Data aligned. Original rows:", length(obs_vec),
+    "Final valid rows:", length(aligned_obs), "\n"
   ))
 
-  # Trim both datasets to start from that index
-  aligned_obs <- obs_vec[first_valid_index:length(obs_vec)]
-  aligned_cov <- cov_df[first_valid_index:nrow(cov_df), ,
-    drop = FALSE
-  ] # drop=FALSE is still correct
-
+  # 5. Return the cleaned and aligned list
   list(
     observations_vec = aligned_obs,
     covariates_df = aligned_cov
+  )
+}
+
+generate_model_data <- function(data_df, vol_window = 20, obs_ma_window = 5) {
+  checkmate::assert_data_frame(data_df)
+  checkmate::assert_subset(c("Close", "WALCL"), colnames(data_df))
+
+  # 1. Create RAW Observations (Log-Returns)
+  # We need these for the volatility covariate
+  raw_obs_vec <- calculate_log_returns(data_df$Close) # From hmm_funcs.R
+
+  # 2. Create SMOOTHED Observations (for the emission model)
+  # This is the new vector that will be returned as `observations_vec`
+  smoothed_obs_vec <- zoo::rollapply(
+    raw_obs_vec,
+    width = obs_ma_window,
+    FUN = mean,
+    fill = NA,
+    align = "right"
+  )
+
+  # 3. Create Covariates (based on RAW data)
+  # Covariate 1: Rolling Volatility (using raw returns)
+  rolling_vol <- zoo::rollapply(
+    raw_obs_vec, # <-- Use raw returns for vol
+    width = vol_window,
+    FUN = sd,
+    fill = NA,
+    align = "right"
+  )
+
+  # Covariate 2: Log-Return of WALCL
+  # We use lag() here to align it with the obs_vec (which has T-1 elements)
+  walcl_log_return <- c(NA, diff(log(data_df$WALCL)))[-1]
+
+  covariates_df <- data.frame(
+    volatility = rolling_vol,
+    walcl_log_return = walcl_log_return
+  )
+
+  # 4. Return aligned data
+  # Note: smoothed_obs_vec and covariates_df have the same length (T-1)
+  checkmate::assert_data_frame(covariates_df, nrows = length(smoothed_obs_vec))
+
+  list(
+    observations_vec = smoothed_obs_vec, # <-- Return the SMOOTHED vector
+    covariates_df = covariates_df
   )
 }

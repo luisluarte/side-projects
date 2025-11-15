@@ -4,6 +4,7 @@
 pacman::p_load(
   tidyverse,
   ggplot2,
+  svglite,
   this.path
 )
 
@@ -23,11 +24,11 @@ dat <- read_csv("final_probabilities_with_dates_prices.csv") %>%
   filter(value == max(value))
 print(dat)
 
-png("p1.png")
-dat %>%
+p1 <- dat %>%
   ggplot(aes(
     Date, log(Close)
   )) +
-  geom_point(aes(color = name))
-dev.off()
-browseURL("p1.png")
+  geom_line(aes(color = name, group = 1))
+ggsave(filename = "p1.svg",
+       plot = p1)
+browseURL("p1.svg")
