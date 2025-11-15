@@ -29,70 +29,10 @@ REGIME_ALLOCATIONS <- list(
   "sideways" = c(BTC = 0.5, USD = 0.5) # 50/50
 )
 
-# === 4. New Morphisms (Data Preparation) ===
-
-#' @title Covariate Generation Morphism
-#' @description Creates the Z_t covariate matrix from the raw price data.
-#' @param log_returns_vec The vector of log-returns (T-1 elements).
-#' @return A data.frame of covariates, aligned with the log-returns.
-generate_covariates <- function(log_returns_vec, window = 20) {
-  checkmate::assert_numeric(log_returns_vec)
-
-  # Calculate 20-day rolling volatility (std dev) of log-returns
-  # 'na.pad = TRUE' ensures the output vector has the same length as the input
-  rolling_vol <- zoo::rollapply(
-    log_returns_vec,
-    width = window,
-    FUN = sd,
-    fill = NA,
-    align = "right"
-  )
-
-  # Create the final dataframe
-  covariates_df <- data.frame(volatility = rolling_vol)
-
-  # Ensure output is a data.frame
-  checkmate::assert_data_frame(covariates_df, nrows = length(log_returns_vec))
-  covariates_df
-}
-
-#' @title Data Alignment Morphism
-#' @description Aligns observations and covariates by removing initial NA
-#'              rows caused by rolling window calculations.
-#' @param obs_vec The T-1 vector of log-returns.
-#' @param cov_df The T-1 data.frame of covariates.
-#' @return A list containing the aligned `observations_vec` and `covariates_df`.
-align_data <- function(obs_vec, cov_df) {
-  # Find the index of the first row that is *not* NA
-  # which() returns the integer positions of TRUE values
-  first_valid_index <- which(stats::complete.cases(cov_df))[1]
-
-  if (is.na(first_valid_index)) {
-    stop("Error in align_data: No complete cases found. Check covariates.")
-  }
-
-  cat(paste(
-    "Data aligned. Trimming first",
-    first_valid_index - 1, "rows for NA warmup.\n"
-  ))
-
-  # Trim both datasets to start from that index
-  aligned_obs <- obs_vec[first_valid_index:length(obs_vec)]
-  aligned_cov <- cov_df[first_valid_index:nrow(cov_df), ,
-    drop = FALSE
-  ] # drop=FALSE is still correct
-
-  list(
-    observations_vec = aligned_obs,
-    covariates_df = aligned_cov
-  )
-}
-
-
 # === 5. The Main Pipeline Execution ===
 
 tdy <- Sys.Date()
-cat(paste("--- 1. LOADING DATA up to:", tdy, "---\n"))
+cat("--- 1. LOADING DATA ---\n")
 
 if (args[1] == "TRUE") {
   raw_data <- get_bitcoin_price_series(
@@ -173,15 +113,47 @@ if (!is.null(trained_model)) {
   # Run the forward pass *one more time* using the OPTIMIZED parameters
   final_filter <- run_forward_pass(
     observations_vec = aligned_data$observations_vec,
-    covariates_df = aligned_data$cqovariates_df,
+    covariates_df = aligned_data$covariates_df,
     state_names = STATES,
     initial_params = initial_model_params$initial_params,
     emission_params = trained_model$optimized_emissions,
     beta_params = trained_model$optimized_betas
   )
 
-  print(head(final_filter))
-  write_csv(x = final_filter, file = "final_filter.csv")
+  cat("\n--- 6. RE-ATTACHING DATES & PRICES ---\n")
+
+  # 1. Get original dates & prices, remove first (due to calculate_log_returns)
+  dates_vec <- raw_data_df$Date[-1]
+  prices_vec <- raw_data_df$Close[-1] # <-- ADDED THIS
+
+  # 2. Find the same start index from align_data (to skip NA warmup)
+  first_valid_index <- which(stats::complete.cases(covariates_df))[1]
+
+  # 3. Slice the date and price vectors to match the aligned data
+  aligned_dates <- dates_vec[first_valid_index:length(dates_vec)]
+  aligned_prices <- prices_vec[first_valid_index:length(prices_vec)]
+
+  # 4. Combine dates, prices, and the probability matrix
+  if (length(aligned_dates) == nrow(final_filter$alpha_matrix) && length(aligned_prices) == nrow(final_filter$alpha_matrix)) {
+    final_probabilities_df <- data.frame(
+      Date = aligned_dates,
+      Close = aligned_prices,
+      final_filter$alpha_matrix
+    )
+
+    print("--- Filtered Probabilities with Dates & Prices (Last 5 Days) ---")
+    print(tail(final_probabilities_df, 5))
+
+    # This is a much more useful CSV file to save
+    write_csv(
+      x = final_probabilities_df,
+      file = "final_probabilities_with_dates_prices.csv"
+    )
+  } else {
+    cat("ERROR: Vector length(s) do not match alpha_matrix row count!\n")
+  }
+  # === END OF NEW SECTION ===
+
 
   # Get the probabilities from the VERY LAST day in the dataset
   last_regime_probs <- tail(final_filter$alpha_matrix, 1)[1, ]

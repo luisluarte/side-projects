@@ -903,3 +903,62 @@ generate_initial_parameters <- function(observations_vec,
     initial_beta_params = initial_beta_params
   )
 }
+
+# === 4. New Morphisms (Data Preparation) ===
+
+#' @title Covariate Generation Morphism
+#' @description Creates the Z_t covariate matrix from the raw price data.
+#' @param log_returns_vec The vector of log-returns (T-1 elements).
+#' @return A data.frame of covariates, aligned with the log-returns.
+generate_covariates <- function(log_returns_vec, window = 20) {
+  checkmate::assert_numeric(log_returns_vec)
+
+  # Calculate 20-day rolling volatility (std dev) of log-returns
+  # 'na.pad = TRUE' ensures the output vector has the same length as the input
+  rolling_vol <- zoo::rollapply(
+    log_returns_vec,
+    width = window,
+    FUN = sd,
+    fill = NA,
+    align = "right"
+  )
+
+  # Create the final dataframe
+  covariates_df <- data.frame(volatility = rolling_vol)
+
+  # Ensure output is a data.frame
+  checkmate::assert_data_frame(covariates_df, nrows = length(log_returns_vec))
+  covariates_df
+}
+
+#' @title Data Alignment Morphism
+#' @description Aligns observations and covariates by removing initial NA
+#'              rows caused by rolling window calculations.
+#' @param obs_vec The T-1 vector of log-returns.
+#' @param cov_df The T-1 data.frame of covariates.
+#' @return A list containing the aligned `observations_vec` and `covariates_df`.
+align_data <- function(obs_vec, cov_df) {
+  # Find the index of the first row that is *not* NA
+  # which() returns the integer positions of TRUE values
+  first_valid_index <- which(stats::complete.cases(cov_df))[1]
+
+  if (is.na(first_valid_index)) {
+    stop("Error in align_data: No complete cases found. Check covariates.")
+  }
+
+  cat(paste(
+    "Data aligned. Trimming first",
+    first_valid_index - 1, "rows for NA warmup.\n"
+  ))
+
+  # Trim both datasets to start from that index
+  aligned_obs <- obs_vec[first_valid_index:length(obs_vec)]
+  aligned_cov <- cov_df[first_valid_index:nrow(cov_df), ,
+    drop = FALSE
+  ] # drop=FALSE is still correct
+
+  list(
+    observations_vec = aligned_obs,
+    covariates_df = aligned_cov
+  )
+}
