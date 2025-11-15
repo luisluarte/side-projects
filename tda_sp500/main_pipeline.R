@@ -63,15 +63,24 @@ generate_covariates <- function(log_returns_vec, window = 20) {
 #' @param cov_df The T-1 data.frame of covariates.
 #' @return A list containing the aligned `observations_vec` and `covariates_df`.
 align_data <- function(obs_vec, cov_df) {
-  # Find the first row where all covariates are complete (non-NA)
-  first_valid_row <- zoo::na.trim(cov_df, is.na = "any", sides = "left")
-  first_valid_index <- as.numeric(rownames(first_valid_row)[1])
+  # Find the index of the first row that is *not* NA
+  # which() returns the integer positions of TRUE values
+  first_valid_index <- which(stats::complete.cases(cov_df))[1]
 
-  cat(paste("Data aligned. Trimming first", first_valid_index - 1, "rows for NA warmup.\n"))
+  if (is.na(first_valid_index)) {
+    stop("Error in align_data: No complete cases found. Check covariates.")
+  }
+
+  cat(paste(
+    "Data aligned. Trimming first",
+    first_valid_index - 1, "rows for NA warmup.\n"
+  ))
 
   # Trim both datasets to start from that index
   aligned_obs <- obs_vec[first_valid_index:length(obs_vec)]
-  aligned_cov <- cov_df[first_valid_index:nrow(cov_df), , drop = FALSE]
+  aligned_cov <- cov_df[first_valid_index:nrow(cov_df), ,
+    drop = FALSE
+  ] # drop=FALSE is still correct
 
   list(
     observations_vec = aligned_obs,
