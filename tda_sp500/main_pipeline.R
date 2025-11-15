@@ -12,8 +12,10 @@ pacman::p_load(
   this.path # For sourcing
 )
 
+args <- commandArgs(trailingOnly = TRUE)
+
 # 2. Source All HMM Morphisms
-# setwd(this.path::here()) # Set working directory if needed
+setwd(this.path::here()) # Set working directory if needed
 source("hmm_funcs.R")
 
 # 3. Define Static Model Parameters
@@ -79,24 +81,45 @@ align_data <- function(obs_vec, cov_df) {
 
 
 # === 5. The Main Pipeline Execution ===
-cat("--- 1. LOADING DATA ---\n")
-raw_data <- get_bitcoin_price_series(
-  ticker = "BTCUSDT",
-  source = "binance",
-  start_date = "2018-01-01",
-  end_date = "2025-11-01", # Use historical data for training
-  interval = "1d"
-)
+
+tdy <- Sys.Date()
+cat(paste("--- 1. LOADING DATA up to:", tdy, "---\n"))
+
+if (args[1] == "TRUE") {
+  raw_data <- get_bitcoin_price_series(
+    ticker = "BTCUSDT",
+    source = "binance",
+    start_date = "2018-01-01",
+    end_date = as.character(tdy),
+    interval = "1d"
+  )
+  saveRDS(raw_data, "btc.csv")
+}
+if (args[1] == "FALSE") {
+  raw_data <- readRDS("btc.csv")
+}
+
+print(tail(raw_data))
 
 # Convert to data.frame for easier handling
 raw_data_df <- data.frame(
   Date = zoo::index(raw_data),
   Close = raw_data$close
 )
+raw_data_df <- raw_data %>%
+  as.data.frame() %>%
+  mutate(
+    Close = close,
+    Date = zoo::index(raw_data)
+  )
 
 cat("--- 2. PREPARING DATA & COVARIATES ---\n")
-observations_vec <- calculate_log_returns(raw_data_df$close)
+observations_vec <- calculate_log_returns(raw_data_df$Close)
 covariates_df <- generate_covariates(observations_vec, window = 20)
+print("Observations...")
+print(tail(observations_vec))
+print("Covariates")
+print(tail(covariates_df))
 
 # Align the data (removes initial NAs from rolling window)
 aligned_data <- align_data(observations_vec, covariates_df)
@@ -107,6 +130,7 @@ initial_model_params <- generate_initial_parameters(
   aligned_data$covariates_df,
   STATES
 )
+print(initial_model_params)
 
 cat("--- 4. RUNNING BAUM-WELCH TRAINING ---\n")
 # This is the main training step. It may take several minutes.
@@ -140,12 +164,15 @@ if (!is.null(trained_model)) {
   # Run the forward pass *one more time* using the OPTIMIZED parameters
   final_filter <- run_forward_pass(
     observations_vec = aligned_data$observations_vec,
-    covariates_df = aligned_data$covariates_df,
+    covariates_df = aligned_data$cqovariates_df,
     state_names = STATES,
     initial_params = initial_model_params$initial_params,
     emission_params = trained_model$optimized_emissions,
     beta_params = trained_model$optimized_betas
   )
+
+  print(head(final_filter))
+  write_csv(x = final_filter, file = "final_filter.csv")
 
   # Get the probabilities from the VERY LAST day in the dataset
   last_regime_probs <- tail(final_filter$alpha_matrix, 1)[1, ]

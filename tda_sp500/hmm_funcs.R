@@ -506,8 +506,11 @@ calculate_smoothed_xi <- function(alpha_matrix,
   checkmate::assert_array(
     xi_array,
     mode = "numeric",
-    d = 3,
-    dim = c(n_obs - 1, n_states, n_states)
+    d = 3
+  )
+
+  checkmate::assert_true(
+    all(dim(xi_array) == c(n_obs - 1, n_states, n_states))
   )
 
   xi_array
@@ -564,14 +567,12 @@ m_step_update_transitions <- function(xi_array,
                                       state_names) {
   n_obs <- nrow(covariates_df)
   n_states <- length(state_names)
-  checkmate::assert_array(
-    xi_array,
-    mode = "numeric",
-    dim = c(n_obs - 1, n_states, n_states)
+  checkmate::assert_true(
+    all(dim(xi_array) == c(n_obs - 1, n_states, n_states))
   )
   checkmate::assert_data_frame(covariates_df)
 
-  predictors_df <- as.data.frame(covariates_df[2:n_obs, ])
+  predictors_df <- covariates_df[2:n_obs, , drop = FALSE]
 
   new_beta_params <- purrr::map(state_names, function(from_state) {
     response_matrix <- xi_array[, from_state, ]
@@ -587,11 +588,31 @@ m_step_update_transitions <- function(xi_array,
       return(default_betas)
     }
 
-    model <- nnet::multinom(
-      response_matrix ~ .,
-      data = predictors_df,
-      trace = FALSE
+    model <- tryCatch(
+      {
+        nnet::multinom(
+          response_matrix ~ .,
+          data = predictors_df,
+          trace = FALSE
+        )
+      },
+      error = function(e) {
+        warning(paste(
+          "nnet::multinom failed for state:", from_state,
+          "Reverting to zero coefficients. Error:", e$message
+        ))
+        NULL # Return NULL on failure
+      }
     )
+
+    # === Reformat Coefficients ===
+    if (is.null(model)) {
+      # Model failed to fit, return the default zero-vector list
+      default_betas <- purrr::map(state_names, ~ c(intercept = 0.0))
+      names(default_betas) <- state_names
+      return(default_betas) # Return default and skip to the next state
+    }
+
 
     coef_matrix <- t(coef(model))
 
@@ -612,7 +633,7 @@ m_step_update_transitions <- function(xi_array,
       b
     })
 
-    return(beta_row_list_renamed)
+    beta_row_list_renamed
   })
 
   names(new_beta_params) <- state_names
@@ -676,7 +697,7 @@ run_baum_welch_training <- function(observations_vec,
       covariates_df,
       state_names,
       emission_params = current_emission_params,
-      beta_params = current_beta_params,
+      beta_params = current_beta_params
     )
 
     new_emission_params <- m_step_update_emissions(
@@ -721,7 +742,7 @@ run_baum_welch_training <- function(observations_vec,
   }
 
   list(
-    optimized_emission = current_emission_params,
+    optimized_emissions = current_emission_params,
     optimized_betas = current_beta_params,
     log_likelihood_history = log_likelihood_history[1:iter]
   )
