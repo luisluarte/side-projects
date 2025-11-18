@@ -70,11 +70,11 @@ merged_xts$WALCL <- zoo::na.locf(merged_xts$WALCL, na.rm = FALSE)
 
 # Now create the data.frame, trim NAs from the *start*
 raw_data_df <- as.data.frame(merged_xts) %>%
-  mutate(
+  dplyr::mutate(
     Date = zoo::index(merged_xts),
     Close = close
   ) %>%
-  select(Date, Close, WALCL) %>% # Keep the new column
+  dplyr::select(Date, Close, WALCL) %>% # Keep the new column
   stats::na.omit() # Remove NAs at the very beginning before data started
 
 print("--- Merged Data Head (with WALCL) ---")
@@ -202,20 +202,43 @@ if (!is.null(trained_model)) {
   }
   # === END OF NEW SECTION ===
 
+  # === 7. FINAL ALLOCATION DECISION ===
 
-  # Get the probabilities from the VERY LAST day in the dataset
-  last_regime_probs <- tail(final_filter$alpha_matrix, 1)[1, ]
+  # --- Define the window for allocation smoothing ---
+  alloc_smooth_window <- 21
 
-  cat("\n--- 7. FINAL ALLOCATION DECISION ---\n")
-  print("Regime Probabilities (Last Day):")
+  cat(paste0(
+    "\n--- 7. FINAL ALLOCATION DECISION (from ",
+    alloc_smooth_window,
+    "-day avg FILTERED probs) ---\n"
+  ))
+
+  # Get a 55-day moving average of the probabilities
+  last_n_probs <- tail(final_filter$alpha_matrix, alloc_smooth_window)
+
+  # Check if it's a matrix (fails if < 2 rows)
+  if (is.matrix(last_n_probs)) {
+    last_regime_probs <- colMeans(last_n_probs)
+  } else {
+    # Fallback for single row or vector (e.g., if dataset is very short)
+    last_regime_probs <- last_n_probs
+  }
+
+  print(paste0(
+    "Averaged Regime Probabilities (Last ",
+    alloc_smooth_window,
+    " Days):"
+  ))
   print(round(last_regime_probs, 4))
 
   # Run the final morphism
   final_target_allocation <- allocation_morphism(
-    last_regime_probs,
+    last_regime_probs, # <--- This is now the 55-day average
     REGIME_ALLOCATIONS
   )
 
   print("Blended Target Allocation:")
   print(round(final_target_allocation, 4))
+} else {
+  cat("ERROR: Model training failed. No allocation will be made.\n")
 }

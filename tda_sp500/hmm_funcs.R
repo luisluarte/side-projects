@@ -7,7 +7,8 @@ pacman::p_load(
   nnet,
   cryptoQuotes,
   lubridate,
-  zoo
+  zoo,
+  TTR # to add the momentum indicators
 )
 
 
@@ -984,16 +985,35 @@ align_data <- function(obs_vec, cov_df) {
   )
 }
 
-generate_model_data <- function(data_df, vol_window = 20, obs_ma_window = 5) {
+# generate model data ----
+#' @title Covariate Generation Morphism (NEW w/ TA)
+#' @description Creates the Z_t covariate matrix from the merged data.
+#'              OBSERVATIONS are smoothed (MA).
+#'              COVARIATES include Vol, Macro, RSI, and MACD.
+#' @param data_df The merged dataframe with Date, Close, and macro columns.
+#' @param vol_window The window for the volatility covariate.
+#' @param obs_ma_window The window for smoothing the observation (log-returns).
+#' @param rsi_window Window for RSI (default 14).
+#' @param macd_slow Window for MACD slow MA (default 26).
+#' @param macd_fast Window for MACD fast MA (default 12).
+#' @param macd_sig Window for MACD signal line (default 9).
+#' @return A list containing `observations_vec` and `covariates_df`.
+generate_model_data <- function(data_df,
+                                vol_window = 20,
+                                obs_ma_window = 5,
+                                rsi_window = 14,
+                                macd_slow = 26,
+                                macd_fast = 12,
+                                macd_sig = 9) {
   checkmate::assert_data_frame(data_df)
   checkmate::assert_subset(c("Close", "WALCL"), colnames(data_df))
 
   # 1. Create RAW Observations (Log-Returns)
-  # We need these for the volatility covariate
+  # (T-1) elements
   raw_obs_vec <- calculate_log_returns(data_df$Close) # From hmm_funcs.R
 
   # 2. Create SMOOTHED Observations (for the emission model)
-  # This is the new vector that will be returned as `observations_vec`
+  # (T-1) elements, with NAs
   smoothed_obs_vec <- zoo::rollapply(
     raw_obs_vec,
     width = obs_ma_window,
@@ -1002,31 +1022,57 @@ generate_model_data <- function(data_df, vol_window = 20, obs_ma_window = 5) {
     align = "right"
   )
 
-  # 3. Create Covariates (based on RAW data)
-  # Covariate 1: Rolling Volatility (using raw returns)
+  # 3. Create Covariates
+  # All covariates must be aligned with the (T-1) observation vector.
+
+  # === Covariate 1: Rolling Volatility ===
+  # (T-1) elements, with NAs
   rolling_vol <- zoo::rollapply(
-    raw_obs_vec, # <-- Use raw returns for vol
+    raw_obs_vec, # Use raw returns for vol
     width = vol_window,
     FUN = sd,
     fill = NA,
     align = "right"
   )
 
-  # Covariate 2: Log-Return of WALCL
-  # We use lag() here to align it with the obs_vec (which has T-1 elements)
+  # === Covariate 2: WALCL Log-Return ===
+  # (T-1) elements, with 1 NA
   walcl_log_return <- c(NA, diff(log(data_df$WALCL)))[-1]
 
+  # === Covariates 3 & 4: MACD & Signal Line ===
+  # TTR functions run on the original (T) price series
+  macd_output <- TTR::MACD(
+    data_df$Close,
+    nFast = macd_fast,
+    nSlow = macd_slow,
+    nSig = macd_sig
+  )
+  # Align them: Drop the first element to match the (T-1) obs_vec
+  # Use matrix[, "colname"] syntax, not $
+  cov_macd <- macd_output[, "macd"][-1]
+  cov_macd_signal <- macd_output[, "signal"][-1]
+
+  # === Covariate 5: RSI ===
+  # TTR RSI also runs on the (T) price series
+  rsi_vec <- TTR::RSI(data_df$Close, n = rsi_window)
+  # Align it: Drop the first element
+  cov_rsi <- rsi_vec[-1]
+
+  # === Build the final covariate data frame ===
   covariates_df <- data.frame(
     volatility = rolling_vol,
-    walcl_log_return = walcl_log_return
+    walcl_log_return = walcl_log_return,
+    macd = cov_macd, # <-- ADDED
+    macd_signal = cov_macd_signal, # <-- ADDED
+    rsi = cov_rsi # <-- ADDED
   )
 
-  # 4. Return aligned data
-  # Note: smoothed_obs_vec and covariates_df have the same length (T-1)
+  # 4. Return data
+  # Both outputs have (T-1) rows, but with different NA warmup periods
   checkmate::assert_data_frame(covariates_df, nrows = length(smoothed_obs_vec))
 
   list(
-    observations_vec = smoothed_obs_vec, # <-- Return the SMOOTHED vector
+    observations_vec = smoothed_obs_vec, # <-- The SMOOTHED vector
     covariates_df = covariates_df
   )
 }
