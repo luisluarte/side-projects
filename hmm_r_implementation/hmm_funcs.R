@@ -8,7 +8,7 @@ pacman::p_load(
   cryptoQuotes,
   lubridate,
   zoo,
-  TTR # to add the momentum indicators
+  TTR
 )
 
 
@@ -17,11 +17,6 @@ setwd(this.path::here())
 print(getwd())
 
 # morphisms ----
-
-## identity function ----
-identity <- function(df) {
-  df
-}
 
 ## initial state ----
 initial_state_morphism_uniform <- function(state_names) {
@@ -920,10 +915,6 @@ generate_initial_parameters <- function(observations_vec,
 
 # === 4. New Morphisms (Data Preparation) ===
 
-#' @title Covariate Generation Morphism
-#' @description Creates the Z_t covariate matrix from the raw price data.
-#' @param log_returns_vec The vector of log-returns (T-1 elements).
-#' @return A data.frame of covariates, aligned with the log-returns.
 generate_covariates <- function(log_returns_vec, window = 20) {
   checkmate::assert_numeric(log_returns_vec)
 
@@ -945,12 +936,6 @@ generate_covariates <- function(log_returns_vec, window = 20) {
   covariates_df
 }
 
-#' @title Data Alignment Morphism (Robust Version)
-#' @description Aligns observations and covariates by removing ALL rows
-#'              (initial or otherwise) that contain NA/NaN/Inf values.
-#' @param obs_vec The vector of log-returns.
-#' @param cov_df The data.frame of covariates.
-#' @return A list containing the fully cleaned `observations_vec` and `covariates_df`.
 align_data <- function(obs_vec, cov_df) {
   # 1. Combine into a temporary data frame for easy alignment
   #    This ensures obs and covs are checked row-by-row
@@ -986,18 +971,6 @@ align_data <- function(obs_vec, cov_df) {
 }
 
 # generate model data ----
-#' @title Covariate Generation Morphism (NEW w/ TA)
-#' @description Creates the Z_t covariate matrix from the merged data.
-#'              OBSERVATIONS are smoothed (MA).
-#'              COVARIATES include Vol, Macro, RSI, and MACD.
-#' @param data_df The merged dataframe with Date, Close, and macro columns.
-#' @param vol_window The window for the volatility covariate.
-#' @param obs_ma_window The window for smoothing the observation (log-returns).
-#' @param rsi_window Window for RSI (default 14).
-#' @param macd_slow Window for MACD slow MA (default 26).
-#' @param macd_fast Window for MACD fast MA (default 12).
-#' @param macd_sig Window for MACD signal line (default 9).
-#' @return A list containing `observations_vec` and `covariates_df`.
 generate_model_data <- function(data_df,
                                 vol_window = 20,
                                 obs_ma_window = 5,

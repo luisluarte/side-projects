@@ -205,7 +205,7 @@ if (!is.null(trained_model)) {
   # === 7. FINAL ALLOCATION DECISION ===
 
   # --- Define the window for allocation smoothing ---
-  alloc_smooth_window <- 21
+  alloc_smooth_window <- 10
 
   cat(paste0(
     "\n--- 7. FINAL ALLOCATION DECISION (from ",
