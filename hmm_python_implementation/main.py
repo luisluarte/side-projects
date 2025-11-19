@@ -28,15 +28,15 @@ def main():
     args = parser.parse_args()
 
     # --- read tickers ---
-    tickers = parse_tickers(filepath = 'tickers.json')
+    asset_config = parse_tickers(filepath = 'tickers.json')
     print("--- getting tickers ---")
-    print(tickers)
+    print(asset_config)
 
     # --- download raw data ---
     print("--- downloading market data")
     if args.fetch_market_data == 'y':
         market_data = fetch_market_data(
-            tickers=tickers,
+            asset_config=asset_config,
             start_date="2018-01-01",
             folder="market_data",
             fetch=args.fetch_market_data.lower()
