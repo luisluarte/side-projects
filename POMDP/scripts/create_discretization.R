@@ -173,4 +173,4 @@ create_data <- d %>%
     })
 
 # save data ----
-saveRDS(object = bind_rows(create_data), file = "../data/processed/discrete_data.rds")
+saveRDS(object = bind_rows(create_data), file = "../data/processed/discrete_data.rds", compress = TRUE)
