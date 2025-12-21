@@ -242,15 +242,52 @@ stan_data <- list(
     ID_REWARD_STATE = 99, ID_NOREWARD_STATE = 100
 )
 
-# Execution ----
 N_CORES <- parallel::detectCores(logical = FALSE)
 mod <- cmdstan_model("POMDP_model.stan")
+
+start_inference <- Sys.time()
+
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = min(4, N_CORES),
     iter_warmup = 1000,
     iter_sampling = 1000,
-    refresh = 50,
-    init = 0
+    # High verbosity refresh rate (every 10 iterations) for granular progress tracking
+    refresh = 10,
+    init = 0,
+    show_messages = TRUE,
+    show_exceptions = TRUE
 )
+
+end_inference <- Sys.time()
+message("Sampling complete. Total Inference Duration: ", round(difftime(end_inference, start_inference, units = "mins"), 2), " minutes.")
+
+# ==============================================================================
+# OUTPUT PERSISTENCE (Morphism into Storage)
+# ==============================================================================
+
+# Create results directory if it doesn't exist
+results_dir <- "../results/model_fits"
+if (!dir.exists(results_dir)) dir.create(results_dir, recursive = TRUE)
+
+# 1. Save the full CmdStanMCMC object
+# This ensures all samples, metadata, and diagnostics are preserved.
+# This is the 'raw' belief state.
+fit$save_object(file = file.path(results_dir, "pomdp_fit_full.rds"))
+
+# 2. Extract and save the posterior summary
+# A compressed representation of the distribution (Means, SDs, R-hat)
+fit_summary <- fit$summary()
+write_csv(fit_summary, file.path(results_dir, "pomdp_summary.csv"))
+
+# 3. Save subject-specific parameters (The individual functors)
+# This extracts beta, kappa, and tau for each animal
+animal_params <- fit$draws(variables = c("beta", "kappa", "tau"), format = "df") %>%
+    as_tibble() %>%
+    # Use subject metadata to map indices back to IDs if needed
+    mutate(animal_id_map = list(animal_map_df))
+
+saveRDS(animal_params, file.path(results_dir, "animal_posteriors.rds"))
+
+message("Model output successfully persisted to ", results_dir)
