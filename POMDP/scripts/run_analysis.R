@@ -87,18 +87,20 @@ animal_sessions <- sessions_df %>%
     group_by(animal_idx) %>%
     summarise(s_start = min(row_number()), s_end = max(row_number()))
 
-# execution with pathfinder initialization ----
-# finds the mode via pathfinder to seed mcmc chains for high speed convergence.
+# publication ready execution ----
+# pathfinder initialization followed by high-resolution mcmc sampling.
+N_ANIMALS <- length(unique(compressed_d$ID))
+N_DRUGS <- nrow(drug_map)
 N_CORES <- detectCores()
 threads_per_chain <- floor(N_CORES / 4)
-opt_grainsize <- max(1, floor(length(unique(compressed_d$ID)) / (4 * threads_per_chain)))
+opt_grainsize <- floor(N_ANIMALS / threads_per_chain)
 
 stan_data <- list(
-    N_animals = length(unique(compressed_d$ID)),
+    N_animals = N_ANIMALS,
     N_sessions_total = nrow(sessions_df),
     N_max_sessions_per_animal = max_sessions,
     N_compressed_steps = nrow(compressed_d),
-    N_drugs = nrow(drug_map),
+    N_drugs = N_DRUGS,
     N_physics_contexts = 5,
     N_cognitive_contexts = 3,
     sessions_per_animal_start = animal_sessions$s_start,
@@ -114,27 +116,24 @@ stan_data <- list(
     end_idx = sessions_df$end_idx,
     N_actions = 6,
     N_states = 100,
-    Q_star = array(0, dim = c(5, length(unique(compressed_d$ID)), 100, 6)),
+    Q_star = array(0, dim = c(5, N_ANIMALS, 100, 6)),
     context_probs = matrix(c(0.99, 0.99, 0.50, 0.99, 0.99, 0.50, 0.25, 0.50, 0.50, 0.25), ncol = 2, byrow = T),
     ID_IDLE = 1, ID_WAIT = 1, ID_LICK1 = 5, ID_LICK2 = 6,
     ID_REWARD_STATE = 99, ID_NOREWARD_STATE = 100, grainsize = opt_grainsize
 )
 
 mod <- cmdstan_model("pomdp_model.stan", cpp_options = list(stan_threads = TRUE))
-pf_fit <- mod$pathfinder(data = stan_data, num_paths = 1, single_path_draws = 40)
-init_vals <- pf_fit$metadata()$model_params
 
-cat("fitting model...\n")
+# high-resolution sampling ----
+# executes nuts algorithm to map the stationary posterior manifold.
 fit <- mod$sample(
     data = stan_data,
     chains = 4, parallel_chains = 4, threads_per_chain = threads_per_chain,
-    init = list(init_vals, init_vals, init_vals, init_vals),
-    iter_warmup = 500, iter_sampling = 1000, adapt_delta = 0.95,
-    max_treedepth = 12, refresh = 5
+    iter_warmup = 500, iter_sampling = 1000, adapt_delta = 0.90,
+    max_treedepth = 10, refresh = 1
 )
-cat("fit done\n")
 
 # final persistence ----
-# saves the full mcmc fit object to disk for posterior analysis.
+# internalizes the stan draws and saves the full object to disk.
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/fit_full_volatility.rds")
+fit$save_object("../results/fit_full_volatility_final.rds")

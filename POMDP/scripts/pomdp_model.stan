@@ -35,9 +35,6 @@ functions {
       int animal_idx = start + i - 1;
       vector[N_physics_contexts] belief = rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
       
-      // subject trait construction
-      // trait = sigma * raw_deviation
-      // intuition: defines the persistent cognitive identity of the animal.
       real trait_b = sigma_beta_trait * beta_trait_raw[animal_idx];
       real trait_k = sigma_kappa_trait * kappa_trait_raw[animal_idx];
       real trait_t = sigma_tau_trait * log_tau_trait_raw[animal_idx];
@@ -49,9 +46,6 @@ functions {
         
         belief = (1.0 - belief_diffusion) * belief + belief_diffusion * rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
         
-        // session level parameter construction
-        // theta_session = mu_group + trait_subject + (sigma_volatility * session_raw)
-        // intuition: combines population baseline, subject identity, and daily fluctuations.
         real b_s = mu_beta[d_idx, cog_ctx] + trait_b + sigma_beta_session[cog_ctx] * beta_session_raw[animal_idx, s_count];
         real k_s = mu_kappa[d_idx, cog_ctx] + trait_k + sigma_kappa_session[cog_ctx] * kappa_session_raw[animal_idx, s_count];
         real t_s = exp(mu_log_tau[d_idx, cog_ctx] + trait_t + sigma_tau_session[cog_ctx] * log_tau_session_raw[animal_idx, s_count]) + 0.01;
@@ -61,34 +55,33 @@ functions {
           int act = action_id[t];
           int next_st = next_state_id[t];
           real w = weight[t];
-          vector[N_actions] Q_values;
           
-          // entropy calculation
-          // H = - sum( belief * log(belief) )
-          // intuition: quantifies the agent's current uncertainty about the context.
+          // equation: H = -sum(b * log(b))
+          // intuition: entropy is pre-calculated once per time-step instead of inside the action loop.
           real H = 0;
           for (c in 1:N_physics_contexts) if(belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
           
-          for (a in 1:N_actions) {
-            real q_ext = 0;
-            for (c in 1:N_physics_contexts) q_ext += belief[c] * Q_star[c, animal_idx, st, a];
-            
-            // total utility composition
-            // Q_total = Q_extrinsic + (beta * dt if idling) + (kappa * entropy if licking)
-            // intuition: integrates physical rewards, motivation to rest, and drive to seek info.
-            real bonus_explore = (st == ID_IDLE && a == ID_WAIT) ? (b_s * dt) : 0;
-            real bonus_info = (a == ID_LICK1 || a == ID_LICK2) ? k_s * H : 0;
-            Q_values[a] = q_ext + bonus_explore + bonus_info;
+          // vectorized valuation morphism
+          // equation: Q_ext = belief' * Q_matrix
+          // intuition: by extracting the context-action matrix for the current state, we use vectorized matrix-vector products to resolve all action values at once.
+          matrix[N_physics_contexts, N_actions] Q_matrix;
+          for (c in 1:N_physics_contexts) {
+            for (a in 1:N_actions) {
+              Q_matrix[c, a] = Q_star[c, animal_idx, st, a];
+            }
           }
           
-          // softmax choice likelihood
-          // lp += weight * categorical_logit(act | Q_total / tau)
-          // intuition: maps utilities to choice probabilities scaled by decision noise.
+          vector[N_actions] Q_values = (belief' * Q_matrix)';
+          
+          // sparse bonus application
+          // equation: Q_total = Q_ext + intrinsic_offsets
+          // intuition: bonuses are applied as sparse offsets only to specific indices, avoiding unnecessary loops.
+          if (st == ID_IDLE) Q_values[ID_WAIT] += (b_s * dt);
+          Q_values[ID_LICK1] += k_s * H;
+          Q_values[ID_LICK2] += k_s * H;
+          
           lp += w * categorical_logit_lpmf(act | Q_values / t_s);
           
-          // bayesian belief update
-          // belief_next = belief * P(outcome | context) / normalizer
-          // intuition: updates the internal map based on stochastic reward outcomes.
           if (next_st == ID_REWARD_STATE || next_st == ID_NOREWARD_STATE) {
             vector[N_physics_contexts] likelihoods;
             int spout_idx = (act == ID_LICK1) ? 1 : 2; 
@@ -157,7 +150,6 @@ parameters {
 }
 
 model {
-  // priors
   to_vector(mu_beta) ~ normal(2.5, 5);
   to_vector(mu_kappa) ~ normal(0.5, 5);
   to_vector(mu_log_tau) ~ normal(0, 1);
