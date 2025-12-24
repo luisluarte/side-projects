@@ -32,7 +32,7 @@ functions {
     real dt = 0.025;
 
     for (i in 1:(end - start + 1)) {
-      int animal_idx = start + i - 1;
+      int animal_idx = animal_slice[i]; // Use the slice identifier correctly
       vector[N_physics_contexts] belief = rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
 
       real trait_b = sigma_beta_trait * beta_trait_raw[animal_idx];
@@ -44,6 +44,7 @@ functions {
         int cog_ctx = session_cognitive_context[s];
         int d_idx = session_drug[s];
 
+        // Belief Diffusion (Temporal Forgetting)
         belief = (1.0 - belief_diffusion) * belief + belief_diffusion * rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
 
         real b_s = mu_beta[d_idx, cog_ctx] + trait_b + sigma_beta_session[cog_ctx] * beta_session_raw[animal_idx, s_count];
@@ -56,9 +57,11 @@ functions {
           int next_st = next_state_id[t];
           real w = weight[t];
 
+          // Entropy calculation for information-seeking (kappa)
           real H = 0;
           for (c in 1:N_physics_contexts) if(belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
 
+          // Extract task-physics values from the Q_star tensor
           matrix[N_physics_contexts, N_actions] Q_matrix;
           for (c in 1:N_physics_contexts) {
             for (a in 1:N_actions) {
@@ -66,14 +69,18 @@ functions {
             }
           }
 
+          // Expected values: dot product of belief and Q_matrix
           vector[N_actions] Q_values = (belief' * Q_matrix)';
 
+          // Add intrinsic components
           if (st == ID_IDLE) Q_values[ID_WAIT] += (b_s * dt);
           Q_values[ID_LICK1] += k_s * H;
           Q_values[ID_LICK2] += k_s * H;
 
+          // Categorical choice likelihood
           lp += w * categorical_logit_lpmf(act | Q_values / t_s);
 
+          // Bayesian Update on observed outcomes
           if (next_st == ID_REWARD_STATE || next_st == ID_NOREWARD_STATE) {
             vector[N_physics_contexts] likelihoods;
             int spout_idx = (act == ID_LICK1) ? 1 : 2;
@@ -143,21 +150,11 @@ parameters {
 
 model {
   // PRIORS: Regularized for Ergodicity and Physical Interpretability
-
-  // mu_beta: Opportunity Cost (Vigor)
-  // Regularized toward 1.0 (Reward scale parity). prevents super-high beta artifacts.
   to_vector(mu_beta) ~ normal(1.0, 1.0);
-
-  // mu_kappa: Information Seeking (Curiosity)
-  // Regularized toward small positive values. prevents curiosity-noise non-identifiability.
   to_vector(mu_kappa) ~ normal(0.1, 0.5);
-
-  // mu_log_tau: Decision Noise (Temperature)
-  // Ensures temperature stays in a stable softmax regime (approx 0.6-1.6).
   to_vector(mu_log_tau) ~ normal(0.0, 0.5);
 
-  // Hierarchical Scale Parameters: Exponential for E-BFMI Stability
-  // Replaces Cauchy(0, 1) to stabilize energy transitions in high dimensions (D=1,260).
+  // Exponential priors for scale stability (solving E-BFMI < 0.3)
   sigma_beta_session ~ exponential(1.0);
   sigma_kappa_session ~ exponential(1.0);
   sigma_tau_session ~ exponential(1.0);
@@ -165,7 +162,7 @@ model {
   sigma_kappa_trait ~ exponential(1.0);
   sigma_tau_trait ~ exponential(1.0);
 
-  // Latent Deviations: Standard Normal (Non-Centered Parameterization)
+  // Non-centered deviations
   beta_trait_raw ~ std_normal();
   kappa_trait_raw ~ std_normal();
   log_tau_trait_raw ~ std_normal();
@@ -173,10 +170,8 @@ model {
   to_vector(kappa_session_raw) ~ std_normal();
   to_vector(log_tau_session_raw) ~ std_normal();
 
-  // Belief Diffusion (Temporal Forgetting)
   belief_diffusion ~ beta(1, 10);
 
-  // Likelihood Summation via reduce_sum
   array[N_animals] int animal_indices;
   for (i in 1:N_animals) animal_indices[i] = i;
 
@@ -194,7 +189,7 @@ model {
                        beta_session_raw, kappa_session_raw, log_tau_session_raw,
                        Q_star, context_probs,
                        belief_diffusion,
-                       N_physics_contexts, int_actions(N_actions), // Cast to ensure match
+                       N_physics_contexts, N_actions,
                        ID_IDLE, ID_WAIT, ID_LICK1, ID_LICK2,
                        ID_REWARD_STATE, ID_NOREWARD_STATE);
 }
