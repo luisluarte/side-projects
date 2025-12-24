@@ -129,7 +129,8 @@ mod <- cmdstan_model("pomdp_model.stan", cpp_options = list(stan_threads = TRUE)
 fit <- mod$sample(
     data = stan_data,
     chains = 4, parallel_chains = 4, threads_per_chain = threads_per_chain,
-    iter_warmup = 500, iter_sampling = 1000, adapt_delta = 0.90,
+    init = 0.5,
+    iter_warmup = 1000, iter_sampling = 1000, adapt_delta = 0.90,
     max_treedepth = 10, refresh = 1
 )
 
