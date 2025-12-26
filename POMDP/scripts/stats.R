@@ -1,92 +1,114 @@
 # ==============================================================================
-# POSTERIOR CORRELATION & DIVERGENCE DIAGNOSTIC
+# CONVERGENCE DIAGNOSTICS: GEOMETRIC AND STATISTICAL AUDIT
 # ==============================================================================
-# Categorical Formalization: Manifold Separation and Ergodic Failure
-# Logic: Identifies if a divergent chain is trapped in a local non-convexity.
+# Categorical Formalization: Verification of the Stationary Limit Object
+# Logic: Checks if the path morphisms from all 4 chains have converged to a
+# single, well-behaved posterior manifold.
 # ==============================================================================
 
 pacman::p_load(
-    tidyverse, posterior, bayesplot, patchwork, scales, this.path
+    tidyverse, cmdstanr, posterior, bayesplot, patchwork, scales, this.path
 )
 
 setwd(this.path::here())
 
-# 1. LOAD FIT AND EXTRACT TARGETS ----
+# 1. LOAD FIT OBJECT ----
+# retrieves the limit object of the hamiltonian flow.
 fit <- readRDS("../results/fit_full_volatility_final.rds")
 
-# We target [1,1] (Naive/Baseline) as the primary diagnostic anchor.
-target_idx <- "[1,1]"
-vars_to_plot <- c(
-    paste0("mu_beta", target_idx),
-    paste0("mu_log_tau", target_idx)
-)
-
-# Preserve the 'Chain' dimension to diagnose the divergence
-draws_array <- fit$draws(variables = vars_to_plot)
-
-# Create a chain-aware data frame for diagnostics
-draws_df <- as_draws_df(draws_array) %>%
-    mutate(
-        mu_tau = exp(.data[[paste0("mu_log_tau", target_idx)]]),
-        Chain = as.factor(.chain)
-    )
-
-# 2. CHAIN-AWARE JOINT POSTERIOR (IDENTIFYING ISLANDS) ----
-# Categorical Intuition: Mapping the 'Island' problem.
-# If the divergent chain is a different color in a different region,
-# the manifold is multi-modal or poorly identified.
-p_joint <- ggplot(draws_df, aes(x = .data[[paste0("mu_beta", target_idx)]], y = mu_tau, color = Chain)) +
-    geom_point(alpha = 0.2, size = 0.5) +
-    geom_density_2d(alpha = 0.5) +
-    scale_color_viridis_d() +
-    theme_minimal() +
-    labs(
-        title = "Chain-Aware Joint Posterior",
-        subtitle = "Check if the divergent chain (color) is isolated from the others.",
-        x = "Motivation (mu_beta)",
-        y = "Decision Noise (mu_tau)"
-    ) +
-    guides(color = guide_legend(override.aes = list(alpha = 1, size = 2)))
-
-# 3. TRACE OVERLAP (THE PATH MORPHISM) ----
-color_scheme_set("viridis")
-p_trace <- mcmc_trace(
-    draws_array,
-    pars = vars_to_plot,
-    facet_args = list(ncol = 1, strip.position = "left")
-) +
-    theme_minimal() +
-    labs(
-        title = "Chain Trajectories (Divergence Check)",
-        subtitle = "A divergent chain will appear as a 'wandering' line outside the main caterpillar."
-    )
-
-# 4. MARGINAL DENSITIES BY CHAIN ----
-p_dens <- mcmc_dens_overlay(draws_array, pars = vars_to_plot) +
-    theme_minimal() +
-    labs(title = "Overlaid Marginal Densities")
-
-# 5. ASSEMBLY ----
-final_diag <- (p_joint | (p_dens / p_trace)) +
-    plot_layout(widths = c(2, 1))
-
-# Export ----
-dir.create("../results/diagnostics", showWarnings = FALSE)
-ggsave("../results/diagnostics/beta_tau_divergence_check.pdf", final_diag, width = 14, height = 8)
-
-# 6. NUMERICAL DIVERGENCE DIAGNOSTICS ----
-# We extract the 'sampler_diagnostics' to see if the chain hit the treedepth limit.
+# 2. SAMPLER DIAGNOSTICS (E-BFMI, Divergences, Treedepth) ----
+# Categorical Logic: Measuring the 'Efficiency Functor'
+# E-BFMI > 0.3 confirms that energy transitions are faithful to the manifold.
 sampler_diags <- fit$sampler_diagnostics()
+
+calc_ebfmi <- function(energy_vec) {
+    sum(diff(energy_vec)^2) / (length(energy_vec) * var(energy_vec))
+}
+
+ebfmi_vals <- apply(sampler_diags[, , "energy__"], 2, calc_ebfmi)
 div_counts <- apply(sampler_diags[, , "divergent__"], 2, sum)
 max_td <- apply(sampler_diags[, , "treedepth__"], 2, max)
 
-message("--- Sampler Diagnostics per Chain ---")
-for (i in 1:length(div_counts)) {
-    message(paste("Chain", i, "- Divergences:", div_counts[i], "| Max Treedepth:", max_td[i]))
+message("--- NUTS Sampler Audit ---")
+for (i in 1:length(ebfmi_vals)) {
+    message(paste0(
+        "Chain ", i,
+        " | E-BFMI: ", round(ebfmi_vals[i], 3),
+        " | Div: ", div_counts[i],
+        " | Max TD: ", max_td[i]
+    ))
 }
 
-# 7. CORRELATION (CLEAN CHAINS ONLY) ----
-# We calculate correlation excluding the divergent chain to see the 'true' manifold.
-clean_draws <- draws_df %>% filter(Chain != which.max(div_counts))
-cor_val <- cor(clean_draws[[paste0("mu_beta", target_idx)]], clean_draws$mu_tau)
-message(paste("\nCorrelation (excluding divergent chain):", round(cor_val, 3)))
+# 3. GLOBAL CONVERGENCE STATS (R-hat and ESS) ----
+# Formalization: The R-hat represents the Rank-Isomorphism of the chains.
+# ESS (Effective Sample Size) measures the informational resolution of the sample.
+
+fit_summary <- fit$summary(
+    variables = c("mu_beta", "mu_kappa", "mu_log_tau", "sigma_beta_trait", "sigma_beta_session"),
+    .rhat = posterior::rhat,
+    .ess_bulk = posterior::ess_bulk,
+    .ess_tail = posterior::ess_tail
+)
+
+cat("\n--- Convergence Summary (Cognitive Parameters) ---\n")
+print(fit_summary)
+
+# 4. CHAIN-WISE DISCREPANCY CHECK (FOR R-HAT > 1.1) ----
+# Categorical Logic: Identifying the 'Island' occupied by each Chain Morphism.
+# If R-hat is high, this table reveals which chain is the outlier.
+cat("\n--- Chain-Wise Parameter Medians (Identifying the 'Island') ---\n")
+target_vars <- c("mu_beta[1,1]", "mu_log_tau[1,1]")
+draws_all <- fit$draws(variables = target_vars)
+
+chain_medians <- draws_all %>%
+    summarise_draws(median, .chain = TRUE) %>%
+    select(chain, variable, median) %>%
+    pivot_wider(names_from = variable, values_from = median)
+
+print(chain_medians)
+
+# Logic: Automatic Identification of Parameters that fail the 'limit object' criteria.
+problematic_params <- fit$summary() %>%
+    filter(rhat > 1.05 | ess_bulk < 400) %>%
+    arrange(desc(rhat))
+
+if (nrow(problematic_params) > 0) {
+    cat("\n--- WARNING: Parameters failing convergence criteria ---\n")
+    cat("A high R-hat (e.g., > 1.1) means the chains are NOT in the same mode.\n")
+    print(head(problematic_params, 20))
+} else {
+    cat("\nSUCCESS: All parameters satisfy R-hat < 1.05 and ESS > 400.\n")
+}
+
+# 5. VISUALIZATION: THE FUZZY CATERPILLAR TEST ----
+# Categorical Intuition: Chains should be indistinguishable fibers.
+draws_array <- fit$draws(variables = target_vars)
+
+p_trace <- mcmc_trace(draws_array) +
+    theme_minimal() +
+    labs(title = "Chain Overlap (The Caterpillar Test)")
+
+# 6. VISUALIZATION: POSTERIOR UNIFICATION ----
+p_dens <- mcmc_dens_overlay(draws_array) +
+    theme_minimal() +
+    labs(title = "Unified Marginal Posterior")
+
+# 7. JOINT MANIFOLD: BETA-TAU IDENTIFIABILITY ----
+draws_df <- as_draws_df(draws_array) %>%
+    mutate(mu_tau = exp(`mu_log_tau[1,1]`))
+
+p_joint <- ggplot(draws_df, aes(x = `mu_beta[1,1]`, y = mu_tau)) +
+    geom_bin2d(bins = 40) +
+    scale_fill_viridis_c(option = "plasma") +
+    geom_density_2d(color = "white", alpha = 0.3) +
+    theme_minimal() +
+    labs(
+        title = "Joint Posterior: Vigor vs. Noise",
+        x = "Motivation (mu_beta)", y = "Decision Noise (mu_tau)"
+    )
+
+# 8. ASSEMBLY AND EXPORT ----
+diag_plot <- (p_trace / p_dens) | p_joint
+ggsave("../results/diagnostics/final_convergence_audit.pdf", diag_plot, width = 14, height = 10)
+
+message("\nDiagnostics exported to ../results/diagnostics/final_convergence_audit.pdf")
