@@ -20,46 +20,16 @@
   (major1) == 4 && (major2) <  18 || \
   (major1) == 4 && (major2) == 18 && (minor) <= 3)
 #endif /* MIN_VERSION_base */
-/* package bytestring-0.11.5.4 */
-#ifndef VERSION_bytestring
-#define VERSION_bytestring "0.11.5.4"
-#endif /* VERSION_bytestring */
-#ifndef MIN_VERSION_bytestring
-#define MIN_VERSION_bytestring(major1,major2,minor) (\
+/* package mycelial-brain-0.1.0.0 */
+#ifndef VERSION_mycelial_brain
+#define VERSION_mycelial_brain "0.1.0.0"
+#endif /* VERSION_mycelial_brain */
+#ifndef MIN_VERSION_mycelial_brain
+#define MIN_VERSION_mycelial_brain(major1,major2,minor) (\
   (major1) <  0 || \
-  (major1) == 0 && (major2) <  11 || \
-  (major1) == 0 && (major2) == 11 && (minor) <= 5)
-#endif /* MIN_VERSION_bytestring */
-/* package cassava-0.5.4.1 */
-#ifndef VERSION_cassava
-#define VERSION_cassava "0.5.4.1"
-#endif /* VERSION_cassava */
-#ifndef MIN_VERSION_cassava
-#define MIN_VERSION_cassava(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  5 || \
-  (major1) == 0 && (major2) == 5 && (minor) <= 4)
-#endif /* MIN_VERSION_cassava */
-/* package text-2.0.2 */
-#ifndef VERSION_text
-#define VERSION_text "2.0.2"
-#endif /* VERSION_text */
-#ifndef MIN_VERSION_text
-#define MIN_VERSION_text(major1,major2,minor) (\
-  (major1) <  2 || \
-  (major1) == 2 && (major2) <  0 || \
-  (major1) == 2 && (major2) == 0 && (minor) <= 2)
-#endif /* MIN_VERSION_text */
-/* package vector-0.13.2.0 */
-#ifndef VERSION_vector
-#define VERSION_vector "0.13.2.0"
-#endif /* VERSION_vector */
-#ifndef MIN_VERSION_vector
-#define MIN_VERSION_vector(major1,major2,minor) (\
-  (major1) <  0 || \
-  (major1) == 0 && (major2) <  13 || \
-  (major1) == 0 && (major2) == 13 && (minor) <= 2)
-#endif /* MIN_VERSION_vector */
+  (major1) == 0 && (major2) <  1 || \
+  (major1) == 0 && (major2) == 1 && (minor) <= 0)
+#endif /* MIN_VERSION_mycelial_brain */
 
 /* tool gcc-15.2.1 */
 #ifndef TOOL_VERSION_gcc
@@ -152,11 +122,8 @@
   (major1) == 2 && (major2) == 45 && (minor) <= 0)
 #endif /* MIN_TOOL_VERSION_strip */
 
-#ifndef CURRENT_PACKAGE_KEY
-#define CURRENT_PACKAGE_KEY "mycelial-brain-0.1.0.0-inplace"
-#endif /* CURRENT_packageKey */
 #ifndef CURRENT_COMPONENT_ID
-#define CURRENT_COMPONENT_ID "mycelial-brain-0.1.0.0-inplace"
+#define CURRENT_COMPONENT_ID "mycelial-brain-0.1.0.0-inplace-mycelial-brain"
 #endif /* CURRENT_COMPONENT_ID */
 #ifndef CURRENT_PACKAGE_VERSION
 #define CURRENT_PACKAGE_VERSION "0.1.0.0"
