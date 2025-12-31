@@ -1,6 +1,7 @@
 # POMDP
+for the biological psychiatry paper
 
-## notes
-A new state S_Armed was included to consider the time between arming the task
-and making an actual lick.
+# Mycelial brain
+trading project
+
 
