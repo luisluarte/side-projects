@@ -131,7 +131,7 @@ fit <- mod$sample(
     chains = 4, parallel_chains = 4, threads_per_chain = threads_per_chain,
     init = 0,
     iter_warmup = 2000, iter_sampling = 1000, adapt_delta = 0.95,
-    max_treedepth = 10, refresh = 1
+    max_treedepth = 12, refresh = 1
 )
 
 # final persistence ----

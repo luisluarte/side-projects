@@ -1,114 +1,76 @@
 # ==============================================================================
-# CONVERGENCE DIAGNOSTICS: GEOMETRIC AND STATISTICAL AUDIT
+# GATING-LOSS INTERACTION TEST: OREXIN ANTAGONISM (FTCS)
 # ==============================================================================
-# Categorical Formalization: Verification of the Stationary Limit Object
-# Logic: Checks if the path morphisms from all 4 chains have converged to a
-# single, well-behaved posterior manifold.
+# Categorical Logic: Measuring the 'Curvature' of the Drug Effect.
+# Interaction (I) = [Drug_High - Veh_High] - [Drug_Base - Veh_Base]
 # ==============================================================================
 
-pacman::p_load(
-    tidyverse, cmdstanr, posterior, bayesplot, patchwork, scales, this.path
-)
+pacman::p_load(tidyverse, cmdstanr, posterior, bayesplot, patchwork, scales, ggdist, bayestestR)
 
-setwd(this.path::here())
-
-# 1. LOAD FIT OBJECT ----
-# retrieves the limit object of the hamiltonian flow.
+# 1. LOAD DATA ----
 fit <- readRDS("../results/fit_full_volatility_final.rds")
 
-# 2. SAMPLER DIAGNOSTICS (E-BFMI, Divergences, Treedepth) ----
-# Categorical Logic: Measuring the 'Efficiency Functor'
-# E-BFMI > 0.3 confirms that energy transitions are faithful to the manifold.
-sampler_diags <- fit$sampler_diagnostics()
+# 2. EXTRACT DRAWS ----
+# Target: mu_kappa[drug, context]
+draws_df <- as_draws_df(fit$draws(variables = "mu_kappa"))
 
-calc_ebfmi <- function(energy_vec) {
-    sum(diff(energy_vec)^2) / (length(energy_vec) * var(energy_vec))
-}
+# 3. CALCULATE INTERACTION MORPHISM ----
+# Drug 1 = Vehicle, Drug 2 = FTCS
+# Context 1 = Baseline, Context 3 = High Uncertainty
+interaction_df <- draws_df %>%
+    mutate(
+        # Drug effects (Morphisms) per context
+        delta_base = `mu_kappa[2,1]` - `mu_kappa[1,1]`, # Usually negative
+        delta_high = `mu_kappa[2,3]` - `mu_kappa[1,3]`, # Usually positive
 
-ebfmi_vals <- apply(sampler_diags[, , "energy__"], 2, calc_ebfmi)
-div_counts <- apply(sampler_diags[, , "divergent__"], 2, sum)
-max_td <- apply(sampler_diags[, , "treedepth__"], 2, max)
-
-message("--- NUTS Sampler Audit ---")
-for (i in 1:length(ebfmi_vals)) {
-    message(paste0(
-        "Chain ", i,
-        " | E-BFMI: ", round(ebfmi_vals[i], 3),
-        " | Div: ", div_counts[i],
-        " | Max TD: ", max_td[i]
-    ))
-}
-
-# 3. GLOBAL CONVERGENCE STATS (R-hat and ESS) ----
-# Formalization: The R-hat represents the Rank-Isomorphism of the chains.
-# ESS (Effective Sample Size) measures the informational resolution of the sample.
-
-fit_summary <- fit$summary(
-    variables = c("mu_beta", "mu_kappa", "mu_log_tau", "sigma_beta_trait", "sigma_beta_session"),
-    .rhat = posterior::rhat,
-    .ess_bulk = posterior::ess_bulk,
-    .ess_tail = posterior::ess_tail
-)
-
-cat("\n--- Convergence Summary (Cognitive Parameters) ---\n")
-print(fit_summary)
-
-# 4. CHAIN-WISE DISCREPANCY CHECK (FOR R-HAT > 1.1) ----
-# Categorical Logic: Identifying the 'Island' occupied by each Chain Morphism.
-# If R-hat is high, this table reveals which chain is the outlier.
-cat("\n--- Chain-Wise Parameter Medians (Identifying the 'Island') ---\n")
-target_vars <- c("mu_beta[1,1]", "mu_log_tau[1,1]")
-draws_all <- fit$draws(variables = target_vars)
-
-chain_medians <- draws_all %>%
-    summarise_draws(median, .chain = TRUE) %>%
-    select(chain, variable, median) %>%
-    pivot_wider(names_from = variable, values_from = median)
-
-print(chain_medians)
-
-# Logic: Automatic Identification of Parameters that fail the 'limit object' criteria.
-problematic_params <- fit$summary() %>%
-    filter(rhat > 1.05 | ess_bulk < 400) %>%
-    arrange(desc(rhat))
-
-if (nrow(problematic_params) > 0) {
-    cat("\n--- WARNING: Parameters failing convergence criteria ---\n")
-    cat("A high R-hat (e.g., > 1.1) means the chains are NOT in the same mode.\n")
-    print(head(problematic_params, 20))
-} else {
-    cat("\nSUCCESS: All parameters satisfy R-hat < 1.05 and ESS > 400.\n")
-}
-
-# 5. VISUALIZATION: THE FUZZY CATERPILLAR TEST ----
-# Categorical Intuition: Chains should be indistinguishable fibers.
-draws_array <- fit$draws(variables = target_vars)
-
-p_trace <- mcmc_trace(draws_array) +
-    theme_minimal() +
-    labs(title = "Chain Overlap (The Caterpillar Test)")
-
-# 6. VISUALIZATION: POSTERIOR UNIFICATION ----
-p_dens <- mcmc_dens_overlay(draws_array) +
-    theme_minimal() +
-    labs(title = "Unified Marginal Posterior")
-
-# 7. JOINT MANIFOLD: BETA-TAU IDENTIFIABILITY ----
-draws_df <- as_draws_df(draws_array) %>%
-    mutate(mu_tau = exp(`mu_log_tau[1,1]`))
-
-p_joint <- ggplot(draws_df, aes(x = `mu_beta[1,1]`, y = mu_tau)) +
-    geom_bin2d(bins = 40) +
-    scale_fill_viridis_c(option = "plasma") +
-    geom_density_2d(color = "white", alpha = 0.3) +
-    theme_minimal() +
-    labs(
-        title = "Joint Posterior: Vigor vs. Noise",
-        x = "Motivation (mu_beta)", y = "Decision Noise (mu_tau)"
+        # The Interaction: Difference of Differences
+        # This measures the "swing" or "gating loss"
+        interaction_effect = delta_high - delta_base
     )
 
-# 8. ASSEMBLY AND EXPORT ----
-diag_plot <- (p_trace / p_dens) | p_joint
-ggsave("../results/diagnostics/final_convergence_audit.pdf", diag_plot, width = 14, height = 10)
+# 4. STATISTICAL INFERENCE FOR GATING ----
+# Prior for the interaction based on mu_kappa ~ N(0.1, 0.5)
+# Var(Interaction) = Var(d23) + Var(d13) + Var(d21) + Var(d11) = 4 * 0.5^2 = 1.0
+# SD = 1.0
+prior_interaction <- distribution_normal(nrow(interaction_df), mean = 0, sd = 1.0)
 
-message("\nDiagnostics exported to ../results/diagnostics/final_convergence_audit.pdf")
+summary_stats <- interaction_df %>%
+    summarise(
+        median_interaction = median(interaction_effect),
+        q05 = quantile(interaction_effect, 0.05),
+        q95 = quantile(interaction_effect, 0.95),
+        pd = max(sum(interaction_effect > 0), sum(interaction_effect < 0)) / n(),
+        BF10 = as.numeric(bayesfactor_parameters(interaction_effect, prior = prior_interaction, null = 0))
+    )
+
+print("--- Gating-Loss Interaction Analysis (High vs Baseline) ---")
+print(summary_stats)
+
+# 5. VISUALIZATION OF THE CROSSOVER ----
+# We plot the two effects side-by-side and the interaction distribution
+p1 <- interaction_df %>%
+    select(delta_base, delta_high) %>%
+    pivot_longer(everything(), names_to = "Context", values_to = "Effect") %>%
+    mutate(Context = factor(Context,
+        levels = c("delta_base", "delta_high"),
+        labels = c("Baseline Context", "High Uncertainty")
+    )) %>%
+    ggplot(aes(x = Effect, y = Context, fill = Context)) +
+    geom_vline(xintercept = 0, linetype = "dashed") +
+    stat_halfeye() +
+    scale_fill_manual(values = c("#440154", "#fde725")) +
+    theme_minimal() +
+    labs(title = "Context-Dependent Drug Effects", x = "Effect Size (FTCS - Vehicle)")
+
+p2 <- ggplot(interaction_df, aes(x = interaction_effect)) +
+    geom_vline(xintercept = 0, linetype = "dotted") +
+    stat_halfeye(fill = "gray70", .width = c(0.89, 0.95)) +
+    theme_minimal() +
+    labs(
+        title = "Interaction Morphism (Gating Test)",
+        subtitle = paste0("Evidence for Gating Loss (BF10): ", round(summary_stats$BF10, 2)),
+        x = "Interaction Magnitude (ΔHigh - ΔBase)"
+    )
+
+final_plot <- p1 / p2 + plot_annotation(title = "Orexin Gating of Information Seeking")
+ggsave("../results/orexin_gating_test.png", final_plot, width = 10, height = 8)
