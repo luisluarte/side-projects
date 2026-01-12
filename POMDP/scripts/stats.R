@@ -1,76 +1,141 @@
-# ==============================================================================
-# GATING-LOSS INTERACTION TEST: OREXIN ANTAGONISM (FTCS)
-# ==============================================================================
-# Categorical Logic: Measuring the 'Curvature' of the Drug Effect.
-# Interaction (I) = [Drug_High - Veh_High] - [Drug_Base - Veh_Base]
-# ==============================================================================
+pacman::p_load(tidyverse, cmdstanr, posterior, bayestestR, ggdist)
+setwd(this.path::here())
 
-pacman::p_load(tidyverse, cmdstanr, posterior, bayesplot, patchwork, scales, ggdist, bayestestR)
 
-# 1. LOAD DATA ----
+# 1. LOAD DATA & FIT ----
+d <- readRDS("../data/processed/discrete_data.rds")
 fit <- readRDS("../results/fit_full_volatility_final.rds")
 
-# 2. EXTRACT DRAWS ----
-# Target: mu_kappa[drug, context]
-draws_df <- as_draws_df(fit$draws(variables = "mu_kappa"))
-
-# 3. CALCULATE INTERACTION MORPHISM ----
-# Drug 1 = Vehicle, Drug 2 = FTCS
-# Context 1 = Baseline, Context 3 = High Uncertainty
-interaction_df <- draws_df %>%
+# 2. EXTRACT EMPIRICAL WAIT TIMES ----
+# Calculate the duration of contiguous 'Wait' actions in the Idle state
+empirical_waits <- d %>%
     mutate(
-        # Drug effects (Morphisms) per context
-        delta_base = `mu_kappa[2,1]` - `mu_kappa[1,1]`, # Usually negative
-        delta_high = `mu_kappa[2,3]` - `mu_kappa[1,3]`, # Usually positive
-
-        # The Interaction: Difference of Differences
-        # This measures the "swing" or "gating loss"
-        interaction_effect = delta_high - delta_base
-    )
-
-# 4. STATISTICAL INFERENCE FOR GATING ----
-# Prior for the interaction based on mu_kappa ~ N(0.1, 0.5)
-# Var(Interaction) = Var(d23) + Var(d13) + Var(d21) + Var(d11) = 4 * 0.5^2 = 1.0
-# SD = 1.0
-prior_interaction <- distribution_normal(nrow(interaction_df), mean = 0, sd = 1.0)
-
-summary_stats <- interaction_df %>%
+        A_code = case_when(A == "a_W" ~ 1, TRUE ~ 0),
+        S_code = case_when(S == "S_I" ~ 1, TRUE ~ 0)
+    ) %>%
+    filter(S_code == 1) %>% # Only look at Idle state
+    group_by(ID, n_sesion) %>%
+    mutate(run_id = data.table::rleid(A_code)) %>%
+    group_by(ID, n_sesion, run_id) %>%
     summarise(
-        median_interaction = median(interaction_effect),
-        q05 = quantile(interaction_effect, 0.05),
-        q95 = quantile(interaction_effect, 0.95),
-        pd = max(sum(interaction_effect > 0), sum(interaction_effect < 0)) / n(),
-        BF10 = as.numeric(bayesfactor_parameters(interaction_effect, prior = prior_interaction, null = 0))
-    )
+        is_wait = first(A_code) == 1,
+        duration_steps = n(),
+        .groups = "drop"
+    ) %>%
+    filter(is_wait) %>%
+    pull(duration_steps)
 
-print("--- Gating-Loss Interaction Analysis (High vs Baseline) ---")
-print(summary_stats)
+# 3. SIMULATE SYNTHETIC WAIT TIMES ----
+# Extract posterior means for beta and tau
+draws <- fit$draws(variables = c("mu_beta", "mu_kappa"), format = "df")
+mean_beta <- mean(draws$`mu_beta[1,1]`) # Baseline Beta
+mean_tau <- 1 # Baseline Tau
+Q_wait <- mean_beta * 0.025 # Scaled Utility
+Q_poke <- 0.7 # Approx Q* for poking (Physics Engine constant)
 
-# 5. VISUALIZATION OF THE CROSSOVER ----
-# We plot the two effects side-by-side and the interaction distribution
-p1 <- interaction_df %>%
-    select(delta_base, delta_high) %>%
-    pivot_longer(everything(), names_to = "Context", values_to = "Effect") %>%
-    mutate(Context = factor(Context,
-        levels = c("delta_base", "delta_high"),
-        labels = c("Baseline Context", "High Uncertainty")
-    )) %>%
-    ggplot(aes(x = Effect, y = Context, fill = Context)) +
-    geom_vline(xintercept = 0, linetype = "dashed") +
-    stat_halfeye() +
-    scale_fill_manual(values = c("#440154", "#fde725")) +
+# Calculate probability of waiting P(W) vs Paking P(P)
+# P(W) = exp(Q_w/tau) / (exp(Q_w/tau) + exp(Q_p/tau))
+p_wait <- exp(Q_wait / mean_tau) / (exp(Q_wait / mean_tau) + exp(Q_poke / mean_tau))
+
+# Simulate 10,000 bouts (Geometric Distribution)
+# Duration ~ Geometric(1 - p_wait)
+synthetic_waits <- rgeom(10000, prob = (1 - p_wait)) + 1
+
+# 4. VISUAL COMPARISON ----
+ppc_data <- bind_rows(
+    tibble(Duration = empirical_waits, Type = "Empirical Data"),
+    tibble(Duration = synthetic_waits, Type = "Posterior Prediction")
+)
+
+p_ppc <- ggplot(ppc_data, aes(x = Duration, fill = Type)) +
+    geom_density(alpha = 0.5) +
+    scale_x_log10(labels = scales::comma) +
     theme_minimal() +
-    labs(title = "Context-Dependent Drug Effects", x = "Effect Size (FTCS - Vehicle)")
-
-p2 <- ggplot(interaction_df, aes(x = interaction_effect)) +
-    geom_vline(xintercept = 0, linetype = "dotted") +
-    stat_halfeye(fill = "gray70", .width = c(0.89, 0.95)) +
-    theme_minimal() +
+    scale_fill_manual(values = c("black", "cyan")) +
     labs(
-        title = "Interaction Morphism (Gating Test)",
-        subtitle = paste0("Evidence for Gating Loss (BF10): ", round(summary_stats$BF10, 2)),
-        x = "Interaction Magnitude (ΔHigh - ΔBase)"
+        title = "Posterior Predictive Check: Wait Time Distribution",
+        subtitle = paste0("Model P(Wait) = ", round(p_wait, 3)),
+        x = "Wait Duration (Steps of 25ms)",
+        y = "Density (Log Scale)"
+    )
+p_ppc
+
+ggsave("../results/figures/ppc_wait_times.png", p_ppc, width = 8, height = 6)
+
+pacman::p_load(tidyverse, data.table, survival, survminer, fitdistrplus)
+
+wait_bouts <- d %>%
+    mutate(
+        # Identify the target state-action pair
+        is_idle_wait = (S == "S_I" & A == "a_W")
+    ) %>%
+    # Group by session to ensure runs don't bleed across boundaries
+    group_by(ID, n_sesion) %>%
+    mutate(
+        # Unique ID for each contiguous run
+        run_id = rleid(is_idle_wait)
+    ) %>%
+    group_by(ID, n_sesion, run_id) %>%
+    summarise(
+        is_target_bout = first(is_idle_wait),
+        duration_steps = n(),
+        .groups = "drop"
+    ) %>%
+    filter(is_target_bout) %>%
+    mutate(
+        duration_sec = duration_steps * 0.025 # Convert 25ms steps to seconds
     )
 
-final_plot <- p1 / p2 + plot_annotation(title = "Orexin Gating of Information Seeking")
-ggsave("../results/orexin_gating_test.png", final_plot, width = 10, height = 8)
+# 3. VISUAL DIAGNOSTIC: LOG-SURVIVAL PLOT ----
+# Logic: If Beta is constant, P(Wait > t) = exp(-lambda * t).
+# Therefore, log(P(Wait > t)) should be a STRAIGHT LINE with slope -lambda.
+# Curvature indicates that Beta changes as the animal waits.
+
+# Fit Kaplan-Meier survival curve
+fit_km <- survfit(Surv(duration_sec) ~ 1, data = wait_bouts)
+
+p_check <- ggsurvplot(
+    fit_km,
+    fun = "log", # Log-Transformation of Survival Probability
+    conf.int = TRUE,
+    ggtheme = theme_minimal()
+)
+p_check
+
+# Save the plot
+dir.create("../results/diagnostics", showWarnings = FALSE)
+ggsave("../results/diagnostics/wait_time_stationarity.png", print(p_check$plot), width = 8, height = 6)
+
+
+# 4. STATISTICAL MODEL COMPARISON (AIC) ----
+# We fit three candidate distributions to the empirical data.
+# Note: Sub-sampling 20,000 points for speed if dataset is massive.
+set.seed(123)
+sample_data <- sample(wait_bouts$duration_sec, min(nrow(wait_bouts), 20000))
+# Ensure non-zero for Log-Normal fitting
+sample_data <- sample_data[sample_data > 0]
+
+message("Fitting distributions to empirical wait times...")
+fit_exp <- fitdist(sample_data, "exp") # Constant Beta
+fit_weibull <- fitdist(sample_data, "weibull") # Beta changes (Power Law)
+fit_lnorm <- fitdist(sample_data, "lnorm") # Beta changes (Multiplicative)
+
+# Compare Goodness-of-Fit
+aic_results <- tibble(
+    Model = c("Exponential (Constant Beta)", "Weibull (Dynamic Beta)", "Log-Normal (Dynamic Beta)"),
+    AIC = c(fit_exp$aic, fit_weibull$aic, fit_lnorm$aic)
+) %>%
+    arrange(AIC)
+
+cat("\n--- DISTRIBUTION FIT COMPARISON ---\n")
+print(aic_results)
+
+# Interpretation Helper
+best_model <- aic_results$Model[1]
+cat("\nVERDICT: The data is best described by the", best_model, ".\n")
+if (best_model != "Exponential (Constant Beta)") {
+    cat("This confirms that Beta is NON-STATIONARY. The animal's probability of re-engaging\n")
+    cat("changes the longer it waits (likely due to inertia or satiety recovery).\n")
+} else {
+    cat("This supports the current model. Beta appears to be effectively constant.\n")
+}
