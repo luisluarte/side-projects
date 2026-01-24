@@ -1,7 +1,9 @@
 functions {
   /**
-   * partial log lik function
-   * processes likelihood for shards of animals in parallel.
+   * partial_log_lik
+   * STABILIZED VERSION
+   * 1. Scalar Accumulation: Removes 'to_vector' heap allocations (Fixes Double Free).
+   * 2. Strict Bounds: Prevents Gamma(0) errors.
    */
   real partial_log_lik(array[] int animal_slice,
                        int start, int end,
@@ -16,11 +18,12 @@ functions {
                        array[] int session_physics_context, 
                        array[] int session_cognitive_context, 
                        array[] int session_drug, 
-                       matrix mu_beta, matrix mu_kappa,
+                       matrix mu_beta, matrix mu_kappa, matrix mu_phi, matrix mu_side,
+                       matrix mu_eta_pos, matrix mu_eta_neg, matrix mu_beta_slope,
                        vector sigma_beta_session, vector sigma_kappa_session,
-                       real sigma_beta_trait, real sigma_kappa_trait,
-                       vector beta_trait_raw, vector kappa_trait_raw,
-                       matrix beta_session_raw, matrix kappa_session_raw,
+                       matrix r_animal_beta, matrix r_animal_kappa, matrix r_animal_phi,
+                       vector beta_session_raw, vector kappa_session_raw,
+                       // INPUT: Standard 4D Array (Safe for reduce_sum)
                        array[,,,] real Q_star, 
                        matrix context_probs,
                        real belief_diffusion,
@@ -30,72 +33,97 @@ functions {
     
     real lp = 0;
     real dt = 0.025; 
-    real tau_fixed = 1.0; 
+    
+    vector[N_actions] Q_values;
+    vector[N_physics_contexts] belief;
+    vector[N_physics_contexts] likelihoods;
+    vector[N_physics_contexts] context_p_vec;
+    vector[N_physics_contexts] uniform_prior = rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
+    
+    real H = 0;
     
     for (i in 1:(end - start + 1)) {
       int animal_idx = animal_slice[i];
+      belief = uniform_prior;
       
-      real trait_b = sigma_beta_trait * beta_trait_raw[animal_idx];
-      real trait_k = sigma_kappa_trait * kappa_trait_raw[animal_idx];
+      real trait_b = r_animal_beta[animal_idx, 1];
+      real trait_k = r_animal_kappa[animal_idx, 1];
+      real trait_phi = r_animal_phi[animal_idx, 1];
       
-      int s_count = 1;
       for (s in sessions_per_animal_start[animal_idx]:sessions_per_animal_end[animal_idx]) {
         int cog_ctx = session_cognitive_context[s]; 
         int d_idx = session_drug[s]; 
+        int prev_act = 0; 
+        real current_wait_time = 0;
         
-        // Belief initialization and Diffusion (Once per session)
-        vector[N_physics_contexts] belief = rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
-        belief = (1.0 - belief_diffusion) * belief + belief_diffusion * rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
+        belief = (1.0 - belief_diffusion) * belief + belief_diffusion * uniform_prior;
         
-        // Recalculate Entropy only when belief changes
-        real H = 0;
-        for (c in 1:N_physics_contexts) if(belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
+        H = 0;
+        for (c in 1:N_physics_contexts) if (belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
         
-        real b_s = mu_beta[d_idx, cog_ctx] + trait_b + sigma_beta_session[cog_ctx] * beta_session_raw[animal_idx, s_count];
-        real k_s = mu_kappa[d_idx, cog_ctx] + trait_k + sigma_kappa_session[cog_ctx] * kappa_session_raw[animal_idx, s_count];
+        real b_s = mu_beta[d_idx, cog_ctx] + trait_b + sigma_beta_session[cog_ctx] * beta_session_raw[s];
+        real k_s = mu_kappa[d_idx, cog_ctx] + trait_k + sigma_kappa_session[cog_ctx] * kappa_session_raw[s];
+        real phi_s = mu_phi[d_idx, cog_ctx] + trait_phi;
+        real side_s = mu_side[d_idx, cog_ctx];
+        real b_slope = mu_beta_slope[d_idx, cog_ctx];
         
+        real ep = exp(fmin(mu_eta_pos[d_idx, cog_ctx], 5.0));
+        real en = exp(fmin(mu_eta_neg[d_idx, cog_ctx], 5.0));
+
         for (t in start_idx[s]:end_idx[s]) {
           int st = state_id[t];
           int act = action_id[t];
           int next_st = next_state_id[t];
           real w = weight[t];
           
-          // Vectorized valuation: Projected from Physics matrix onto current Belief fiber
-          vector[N_actions] Q_values = rep_vector(0, N_actions);
-          for (c in 1:N_physics_contexts) {
-            if (belief[c] > 1e-12) {
-                for (a in 1:N_actions) {
-                    Q_values[a] += belief[c] * Q_star[c, animal_idx, st, a];
-                }
-            }
+          // STABILIZED: Scalar Accumulation
+          // Avoids 'to_vector' heap allocation inside hot loop.
+          // Compiler -O3 will still optimize this to registers.
+          for (a in 1:N_actions) {
+             real acc = 0;
+             for (c in 1:N_physics_contexts) {
+                acc += belief[c] * Q_star[c, animal_idx, st, a];
+             }
+             Q_values[a] = acc;
           }
           
-          // Add Cognitive Biases
-          if (st == ID_IDLE) Q_values[ID_WAIT] += (b_s * dt);
-          Q_values[ID_LICK1] += k_s * H;
+          if (st == ID_IDLE) {
+            real b_eff = b_s + b_slope * log1p(current_wait_time);
+            Q_values[ID_WAIT] += (b_eff * dt);
+          }
+          
+          Q_values[ID_LICK1] += k_s * H + side_s; 
           Q_values[ID_LICK2] += k_s * H;
           
-          lp += w * categorical_logit_lpmf(act | Q_values / tau_fixed);
+          if (prev_act == ID_LICK1 || prev_act == ID_LICK2) Q_values[prev_act] += phi_s;
           
-          // Only update belief (and entropy) at outcomes to save computation
+          for(a in 1:N_actions) Q_values[a] = fmin(fmax(Q_values[a], -50.0), 50.0);
+          
+          lp += w * categorical_logit_lpmf(act | Q_values); 
+          
+          if (act == ID_WAIT) current_wait_time += (w * dt);
+          else current_wait_time = 0;
+          prev_act = act;
+          
           if (next_st == ID_REWARD_STATE || next_st == ID_NOREWARD_STATE) {
-            vector[N_physics_contexts] likelihoods;
-            int spout_idx = (act == ID_LICK1) ? 1 : 2; 
-            for (c in 1:N_physics_contexts) {
-              real p = context_probs[c, spout_idx];
-              likelihoods[c] = (next_st == ID_REWARD_STATE) ? p : (1.0 - p);
+            int spout_idx = (act == ID_LICK1) ? 1 : 2;
+            context_p_vec = col(context_probs, spout_idx);
+            
+            if (next_st == ID_REWARD_STATE) {
+               for(c in 1:N_physics_contexts) likelihoods[c] = pow(context_p_vec[c], ep);
+            } else {
+               for(c in 1:N_physics_contexts) likelihoods[c] = pow(1.0 - context_p_vec[c], en);
             }
+            
             belief = belief .* likelihoods;
             real sum_b = sum(belief);
             if (sum_b > 1e-15) belief /= sum_b;
-            else belief = rep_vector(1.0 / N_physics_contexts, N_physics_contexts);
+            else belief = uniform_prior;
             
-            // Recompute Entropy for the next set of steps
             H = 0;
-            for (c in 1:N_physics_contexts) if(belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
+            for (c in 1:N_physics_contexts) if (belief[c] > 1e-12) H -= belief[c] * log(belief[c]);
           }
         }
-        s_count += 1;
       }
     }
     return lp;
@@ -105,7 +133,6 @@ functions {
 data {
   int<lower=1> N_animals;
   int<lower=1> N_sessions_total;
-  int<lower=1> N_max_sessions_per_animal;
   int<lower=1> N_compressed_steps; 
   int<lower=1> N_drugs;
   int<lower=1> N_physics_contexts; 
@@ -123,7 +150,11 @@ data {
   array[N_sessions_total] int<lower=1> end_idx;   
   int<lower=1> N_actions;  
   int<lower=1> N_states;   
+  
+  // PRIMITIVE 4D ARRAY: The safest possible container for threading
+  // [Context, Animal, State, Action]
   array[N_physics_contexts, N_animals, N_states, N_actions] real Q_star; 
+  
   matrix[N_physics_contexts, 2] context_probs; 
   int ID_IDLE; int ID_WAIT; int ID_LICK1; int ID_LICK2;
   int ID_REWARD_STATE; int ID_NOREWARD_STATE;
@@ -133,63 +164,93 @@ data {
 parameters {
   vector[N_cognitive_contexts] base_beta;
   vector[N_cognitive_contexts] base_kappa;
+  vector[N_cognitive_contexts] base_phi;
+  vector[N_cognitive_contexts] base_side;
+  vector[N_cognitive_contexts] base_beta_slope;
+  vector[N_cognitive_contexts] base_eta_pos;
+  vector[N_cognitive_contexts] base_eta_neg;
   
   matrix[N_drugs, N_cognitive_contexts] delta_beta;
   matrix[N_drugs, N_cognitive_contexts] delta_kappa;
+  matrix[N_drugs, N_cognitive_contexts] delta_phi;
+  matrix[N_drugs, N_cognitive_contexts] delta_side;
+  matrix[N_drugs, N_cognitive_contexts] delta_beta_slope;
+  matrix[N_drugs, N_cognitive_contexts] delta_eta_pos;
+  matrix[N_drugs, N_cognitive_contexts] delta_eta_neg;
   
-  vector<lower=0>[N_cognitive_contexts] sigma_beta_session;
-  vector<lower=0>[N_cognitive_contexts] sigma_kappa_session;
   real<lower=0> sigma_beta_trait;
   real<lower=0> sigma_kappa_trait;
+  real<lower=0> sigma_phi_trait;
   
   vector[N_animals] beta_trait_raw;
   vector[N_animals] kappa_trait_raw;
-  matrix[N_animals, N_max_sessions_per_animal] beta_session_raw;
-  matrix[N_animals, N_max_sessions_per_animal] kappa_session_raw;
+  vector[N_animals] phi_trait_raw;
+
+  // FIX: Non-zero lower bound to prevent Gamma(0) error
+  vector<lower=1e-6>[N_cognitive_contexts] sigma_beta_session;
+  vector<lower=1e-6>[N_cognitive_contexts] sigma_kappa_session;
+  
+  vector[N_sessions_total] beta_session_raw;
+  vector[N_sessions_total] kappa_session_raw;
   
   real<lower=0, upper=0.5> belief_diffusion;
-  
-  real<lower=2> nu_beta;
-  real<lower=2> nu_kappa;
 }
 
 transformed parameters {
   matrix[N_drugs, N_cognitive_contexts] mu_beta;
   matrix[N_drugs, N_cognitive_contexts] mu_kappa;
+  matrix[N_drugs, N_cognitive_contexts] mu_phi;
+  matrix[N_drugs, N_cognitive_contexts] mu_side;
+  matrix[N_drugs, N_cognitive_contexts] mu_beta_slope;
+  matrix[N_drugs, N_cognitive_contexts] mu_eta_pos;
+  matrix[N_drugs, N_cognitive_contexts] mu_eta_neg;
   
+  matrix[N_animals, 1] r_animal_beta = to_matrix(sigma_beta_trait * beta_trait_raw, N_animals, 1);
+  matrix[N_animals, 1] r_animal_kappa = to_matrix(sigma_kappa_trait * kappa_trait_raw, N_animals, 1);
+  matrix[N_animals, 1] r_animal_phi = to_matrix(sigma_phi_trait * phi_trait_raw, N_animals, 1);
+
   for (d in 1:N_drugs) {
     for (c in 1:N_cognitive_contexts) {
-      if (d == 1) {
-        mu_beta[d, c] = base_beta[c];
-        mu_kappa[d, c] = base_kappa[c];
-      } else {
-        mu_beta[d, c] = base_beta[c] + delta_beta[d, c];
-        mu_kappa[d, c] = base_kappa[c] + delta_kappa[d, c];
-      }
+      mu_beta[d, c] = base_beta[c] + (d > 1 ? delta_beta[d, c] : 0);
+      mu_kappa[d, c] = base_kappa[c] + (d > 1 ? delta_kappa[d, c] : 0);
+      mu_phi[d, c] = base_phi[c] + (d > 1 ? delta_phi[d, c] : 0);
+      mu_side[d, c] = base_side[c] + (d > 1 ? delta_side[d, c] : 0);
+      mu_beta_slope[d, c] = base_beta_slope[c] + (d > 1 ? delta_beta_slope[d, c] : 0);
+      mu_eta_pos[d, c] = base_eta_pos[c] + (d > 1 ? delta_eta_pos[d, c] : 0);
+      mu_eta_neg[d, c] = base_eta_neg[c] + (d > 1 ? delta_eta_neg[d, c] : 0);
     }
   }
 }
 
 model {
-  // PRIORS: Regularized for HMC Stability
-  base_beta ~ normal(1.0, 1.0); 
-  base_kappa ~ normal(0.1, 0.5); 
-  to_vector(delta_beta) ~ normal(0, 0.5); 
-  to_vector(delta_kappa) ~ normal(0, 0.25); 
+  base_beta ~ normal(1.0, 1.0);
+  base_kappa ~ normal(0.1, 0.5);
+  base_phi ~ normal(0, 1.0);
+  base_side ~ normal(0, 0.5);
+  base_beta_slope ~ normal(0, 1.0);
+  base_eta_pos ~ normal(0, 0.5);
+  base_eta_neg ~ normal(0, 0.5);
   
-  nu_beta ~ gamma(2, 0.1); 
-  nu_kappa ~ gamma(2, 0.1);
+  to_vector(delta_beta) ~ normal(0, 0.5);
+  to_vector(delta_kappa) ~ normal(0, 0.25);
+  to_vector(delta_phi) ~ normal(0, 0.5);
+  to_vector(delta_side) ~ normal(0, 0.25);
+  to_vector(delta_beta_slope) ~ normal(0, 0.5);
+  to_vector(delta_eta_pos) ~ normal(0, 0.25);
+  to_vector(delta_eta_neg) ~ normal(0, 0.25);
   
-  beta_trait_raw ~ student_t(nu_beta, 0, 1);
-  kappa_trait_raw ~ student_t(nu_kappa, 0, 1);
-  
-  to_vector(beta_session_raw) ~ std_normal();
-  to_vector(kappa_session_raw) ~ std_normal();
-  
-  sigma_beta_session ~ exponential(1.0);
-  sigma_kappa_session ~ exponential(1.0);
+  beta_trait_raw ~ std_normal();
+  kappa_trait_raw ~ std_normal();
+  phi_trait_raw ~ std_normal();
   sigma_beta_trait ~ exponential(1.0);
   sigma_kappa_trait ~ exponential(1.0);
+  sigma_phi_trait ~ exponential(1.0);
+
+  sigma_beta_session ~ gamma(2, 10);
+  sigma_kappa_session ~ exponential(1.0);
+  
+  beta_session_raw ~ std_normal();
+  kappa_session_raw ~ std_normal();
   
   belief_diffusion ~ beta(1, 10);
   
@@ -203,10 +264,10 @@ model {
                        session_physics_context,
                        session_cognitive_context,
                        session_drug,
-                       mu_beta, mu_kappa, 
+                       mu_beta, mu_kappa, mu_phi, mu_side,
+                       mu_eta_pos, mu_eta_neg, mu_beta_slope,
                        sigma_beta_session, sigma_kappa_session, 
-                       sigma_beta_trait, sigma_kappa_trait, 
-                       beta_trait_raw, kappa_trait_raw, 
+                       r_animal_beta, r_animal_kappa, r_animal_phi,
                        beta_session_raw, kappa_session_raw, 
                        Q_star, context_probs,
                        belief_diffusion,

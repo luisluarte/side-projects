@@ -1,13 +1,20 @@
+# ==============================================================================
+# HIERARCHICAL POMDP ANALYSIS: ROBUST ZEN 5 OPTIMIZATION
+# ==============================================================================
+# 1. Threading: 3 Chains x 2 Threads (Physical Core Saturation)
+# 2. Safety: PRIMITIVE ARRAYS + NO HEAP ALLOCS inside loop.
+# ==============================================================================
+
 pacman::p_load(
     tidyverse, cmdstanr, posterior, parallel, data.table, this.path
 )
 
 setwd(this.path::here())
 
-# data preparation ----
-# loads raw data and maps behavioral events into a discrete state-action category.
+# 1. DATA PREPARATION & DISCRETIZATION ----
 d <- readRDS("../data/processed/discrete_data.rds")
 
+# Map actions and states to numeric IDs
 coded_d <- d %>%
     mutate(
         A = case_when(
@@ -24,117 +31,166 @@ coded_d <- d %>%
     filter(!is.na(A), !is.na(S)) %>%
     mutate(next_S = lead(S, default = 1))
 
-compressed_d <- coded_d %>%
-    mutate(
-        outcome_event = next_S %in% c(99, 100),
-        run_id = rleid(ID, n_sesion, S, A, next_S, outcome_event)
-    ) %>%
-    group_by(run_id) %>%
+# 2. SUBJECT-SPECIFIC PHYSICS CALIBRATION ----
+message("Calibrating individual motor physics...")
+
+animal_physics <- coded_d %>%
+    filter(true_context == "C_T") %>%
+    group_by(ID) %>%
     summarise(
-        ID = first(ID), n_sesion = first(n_sesion), droga = first(droga),
-        true_context = first(true_context), S = first(S), A = first(A),
-        next_S = first(next_S), weight = n(), .groups = "drop"
+        lick_cost_steps = round(mean(diff(timestamp[A %in% c(5, 6)]) %/% 25, na.rm = T)),
+        .groups = "drop"
+    ) %>%
+    mutate(
+        lick_cost_steps = ifelse(is.na(lick_cost_steps) | lick_cost_steps < 4, 6, lick_cost_steps),
+        travel_cost_steps = 15,
+        poke_cost_steps = 2
     )
 
-# mapping and design constraints ----
-# identifies the experimental support and restricts naive to the baseline context.
-animal_map <- tibble(ID = unique(compressed_d$ID)) %>% mutate(animal_idx = row_number())
+# 3. VALUE ITERATION: GENERATING Q_STAR_FINAL ----
+GAMMA <- 0.99
+N_LICK_CHAIN <- 5
+N_PHYS_CONTEXTS <- 5
+N_STATES <- 100
+N_ACTIONS <- 6
+N_ANIMALS <- nrow(animal_physics)
+CTX_PROBS <- matrix(c(0.99, 0.99, 0.50, 0.99, 0.99, 0.50, 0.25, 0.50, 0.50, 0.25), ncol = 2, byrow = T)
 
-compressed_d <- compressed_d %>%
-    mutate(droga_mapped = case_when(
-        droga == "na_na_na_na" ~ "Naive",
-        droga == "veh_na_na_na" ~ "Vehicle",
-        TRUE ~ droga
-    ))
+calc_chain_value <- function(p_reward, k, lick_cost) {
+    v_outcome <- p_reward
+    licks_needed <- N_LICK_CHAIN - k
+    if (licks_needed <= 0) {
+        return(v_outcome)
+    }
+    return((GAMMA^(lick_cost * licks_needed)) * v_outcome)
+}
 
-drug_map <- tibble(droga = unique(compressed_d$droga_mapped)) %>%
-    mutate(is_naive = droga == "Naive") %>%
-    arrange(desc(is_naive)) %>%
-    mutate(drug_id = row_number()) %>%
-    select(-is_naive)
+Q_raw <- array(0, dim = c(N_ANIMALS, N_PHYS_CONTEXTS, N_STATES, N_ACTIONS))
 
-compressed_d <- compressed_d %>%
+for (a in 1:N_ANIMALS) {
+    p_a <- animal_physics[a, ]
+    L_C <- p_a$lick_cost_steps
+    T_C <- p_a$travel_cost_steps
+    P_C <- p_a$poke_cost_steps
+    for (c in 1:N_PHYS_CONTEXTS) {
+        p1 <- CTX_PROBS[c, 1]
+        p2 <- CTX_PROBS[c, 2]
+        for (k in 0:4) {
+            sid <- if (k == 0) 4 else (4 + k)
+            Q_raw[a, c, sid, 5] <- (GAMMA^(if (k == 0) T_C else L_C)) * calc_chain_value(p1, k + 1, L_C)
+        }
+        for (k in 0:4) {
+            sid <- if (k == 0) 4 else (8 + k)
+            Q_raw[a, c, sid, 6] <- (GAMMA^(if (k == 0) T_C else L_C)) * calc_chain_value(p2, k + 1, L_C)
+        }
+        v_a <- max(Q_raw[a, c, 4, 5], Q_raw[a, c, 4, 6])
+        Q_raw[a, c, 3, 4] <- v_a * GAMMA
+        Q_raw[a, c, 2, 3] <- Q_raw[a, c, 3, 4] * GAMMA
+        Q_raw[a, c, 1, 2] <- Q_raw[a, c, 2, 3] * (GAMMA^P_C)
+    }
+}
+
+# RESHAPE: [Animal, Context, State, Action] -> [Context, Animal, State, Action]
+# This matches the new array[,,,] declaration in Stan
+Q_star_final <- aperm(Q_raw, c(2, 1, 3, 4))
+
+# 4. DATA MAPPING & SESSION INDEXING ----
+animal_map <- tibble(ID = animal_physics$ID) %>% mutate(animal_idx = row_number())
+
+sessions_df <- coded_d %>%
     left_join(animal_map, by = "ID") %>%
     mutate(
         phys_ctx_id = case_when(
             true_context == "C_T" ~ 1, true_context == "C_S2a" ~ 2,
             true_context == "C_S2b" ~ 3, true_context == "C_S3a" ~ 4, TRUE ~ 5
         ),
-        cog_ctx_id = case_when(
-            droga_mapped == "Naive" ~ 1,
-            phys_ctx_id == 1 ~ 1,
-            phys_ctx_id %in% 2:3 ~ 2,
-            TRUE ~ 3
+        droga_mapped = case_when(
+            droga %in% c("na_na_na_na", "veh_na_na_na") ~ "Vehicle",
+            TRUE ~ droga
         )
-    )
-
-# session indexing ----
-# constructs a fiber bundle of sessions nested within subject traits.
-sessions_df <- compressed_d %>%
+    ) %>%
     group_by(animal_idx, n_sesion) %>%
     summarise(
-        start_idx = min(row_number()), end_idx = max(row_number()),
-        phys_ctx = first(phys_ctx_id), cog_ctx = first(cog_ctx_id),
-        drug_id = drug_map$drug_id[drug_map$droga == first(droga_mapped)],
+        phys_ctx = first(phys_ctx_id),
+        cog_ctx = case_when(first(droga_mapped) == "Vehicle" & phys_ctx == 1 ~ 1, phys_ctx %in% 2:3 ~ 2, TRUE ~ 3),
+        drug_name = first(droga_mapped),
         .groups = "drop"
-    ) %>%
-    group_by(animal_idx) %>%
-    mutate(local_session_idx = row_number()) %>%
-    ungroup()
+    )
 
-max_sessions <- max(sessions_df$local_session_idx)
-animal_sessions <- sessions_df %>%
-    group_by(animal_idx) %>%
-    summarise(s_start = min(row_number()), s_end = max(row_number()))
+drug_map <- tibble(drug_name = unique(sessions_df$drug_name)) %>% mutate(drug_id = row_number())
+sessions_df <- sessions_df %>% left_join(drug_map, by = "drug_name")
 
-# publication ready execution ----
-# pathfinder initialization followed by high-resolution mcmc sampling.
-N_ANIMALS <- length(unique(compressed_d$ID))
-N_DRUGS <- nrow(drug_map)
-N_CORES <- detectCores()
-threads_per_chain <- floor(N_CORES / 4)
-opt_grainsize <- floor(N_ANIMALS / threads_per_chain)
+compressed_steps <- coded_d %>%
+    left_join(animal_map, by = "ID") %>%
+    mutate(run_id = rleid(animal_idx, n_sesion, S, A)) %>%
+    group_by(run_id) %>%
+    summarise(
+        animal_idx = first(animal_idx), n_sesion = first(n_sesion),
+        S = first(S), A = first(A), next_S = first(next_S), weight = n(),
+        .groups = "drop"
+    )
+
+session_pointers <- compressed_steps %>%
+    group_by(animal_idx, n_sesion) %>%
+    summarise(start_idx = min(row_number()), end_idx = max(row_number()), .groups = "drop")
+
+animal_pointers <- session_pointers %>%
+    group_by(animal_idx) %>%
+    summarise(s_start = min(row_number()), s_end = max(row_number()), .groups = "drop")
+
+# 5. EXECUTION (SAFE MODE) ----
 
 stan_data <- list(
-    N_animals = N_ANIMALS,
-    N_sessions_total = nrow(sessions_df),
-    N_max_sessions_per_animal = max_sessions,
-    N_compressed_steps = nrow(compressed_d),
-    N_drugs = N_DRUGS,
+    N_animals = nrow(animal_map),
+    N_sessions_total = nrow(session_pointers),
+    N_compressed_steps = nrow(compressed_steps),
+    N_drugs = nrow(drug_map),
     N_physics_contexts = 5,
     N_cognitive_contexts = 3,
-    sessions_per_animal_start = animal_sessions$s_start,
-    sessions_per_animal_end = animal_sessions$s_end,
+    sessions_per_animal_start = animal_pointers$s_start,
+    sessions_per_animal_end = animal_pointers$s_end,
     session_physics_context = sessions_df$phys_ctx,
     session_cognitive_context = sessions_df$cog_ctx,
     session_drug = sessions_df$drug_id,
-    state_id = compressed_d$S,
-    action_id = compressed_d$A,
-    next_state_id = compressed_d$next_S,
-    weight = compressed_d$weight,
-    start_idx = sessions_df$start_idx,
-    end_idx = sessions_df$end_idx,
-    N_actions = 6,
-    N_states = 100,
-    Q_star = array(0, dim = c(5, N_ANIMALS, 100, 6)),
-    context_probs = matrix(c(0.99, 0.99, 0.50, 0.99, 0.99, 0.50, 0.25, 0.50, 0.50, 0.25), ncol = 2, byrow = T),
+    state_id = compressed_steps$S,
+    action_id = compressed_steps$A,
+    next_state_id = compressed_steps$next_S,
+    weight = compressed_steps$weight,
+    start_idx = session_pointers$start_idx,
+    end_idx = session_pointers$end_idx,
+    N_actions = 6, N_states = 100,
+    # PASSING ARRAY DIRECTLY
+    Q_star = Q_star_final,
+    context_probs = CTX_PROBS,
     ID_IDLE = 1, ID_WAIT = 1, ID_LICK1 = 5, ID_LICK2 = 6,
-    ID_REWARD_STATE = 99, ID_NOREWARD_STATE = 100, grainsize = opt_grainsize
+    ID_REWARD_STATE = 99, ID_NOREWARD_STATE = 100,
+    grainsize = max(1, as.integer(nrow(animal_map) / 6))
 )
 
-mod <- cmdstan_model("pomdp_model.stan", cpp_options = list(stan_threads = TRUE))
+# SAFETY UPDATE: Removed -march=native
+# Arch Linux + Zen 5 + AVX512 + reduce_sum is creating alignment crashes.
+# -O3 is stable and fast enough.
+mod <- cmdstan_model(
+    "pomdp_model.stan",
+    cpp_options = list(
+        stan_threads = TRUE,
+        "CXXFLAGS += -O3"
+    )
+)
 
-# high-resolution sampling ----
-# executes nuts algorithm to map the stationary posterior manifold.
+# Threading: 3 Chains x 2 Threads
 fit <- mod$sample(
     data = stan_data,
-    chains = 4, parallel_chains = 4, threads_per_chain = threads_per_chain,
-    init = 0,
-    iter_warmup = 2000, iter_sampling = 1000, adapt_delta = 0.95,
-    max_treedepth = 12, refresh = 1
+    chains = 3,
+    parallel_chains = 3,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    max_treedepth = 12,
+    adapt_delta = 0.90,
+    init = 0.1,
+    refresh = 10
 )
 
-# final persistence ----
-# internalizes the stan draws and saves the full object to disk.
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/fit_full_volatility_final.rds")
+fit$save_object("../results/fit_optimal_final.rds")
