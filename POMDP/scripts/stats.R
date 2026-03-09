@@ -1,141 +1,221 @@
-pacman::p_load(tidyverse, cmdstanr, posterior, bayestestR, ggdist)
+# libs ----
+pacman::p_load(
+    tidyverse,
+    cmdstanr,
+    posterior,
+    tidybayes,
+    ggdist,
+    patchwork,
+    GGally
+)
+
+# set source as path ----
 setwd(this.path::here())
 
+# model description ----
 
-# 1. LOAD DATA & FIT ----
-d <- readRDS("../data/processed/discrete_data.rds")
-fit <- readRDS("../results/fit_full_volatility_final.rds")
+## cognitive architecture ----
 
-# 2. EXTRACT EMPIRICAL WAIT TIMES ----
-# Calculate the duration of contiguous 'Wait' actions in the Idle state
-empirical_waits <- d %>%
-    mutate(
-        A_code = case_when(A == "a_W" ~ 1, TRUE ~ 0),
-        S_code = case_when(S == "S_I" ~ 1, TRUE ~ 0)
-    ) %>%
-    filter(S_code == 1) %>% # Only look at Idle state
-    group_by(ID, n_sesion) %>%
-    mutate(run_id = data.table::rleid(A_code)) %>%
-    group_by(ID, n_sesion, run_id) %>%
-    summarise(
-        is_wait = first(A_code) == 1,
-        duration_steps = n(),
-        .groups = "drop"
-    ) %>%
-    filter(is_wait) %>%
-    pull(duration_steps)
+# the model is a hierarchical partially observable markov decision process (POMDP)
+# this model captures how animals infer hidden environmental state to make decisions
+# in a setting of motivated behavior (lickometer), and how TCS alters this cofnitive process
 
-# 3. SIMULATE SYNTHETIC WAIT TIMES ----
-# Extract posterior means for beta and tau
-draws <- fit$draws(variables = c("mu_beta", "mu_kappa"), format = "df")
-mean_beta <- mean(draws$`mu_beta[1,1]`) # Baseline Beta
-mean_tau <- 1 # Baseline Tau
-Q_wait <- mean_beta * 0.025 # Scaled Utility
-Q_poke <- 0.7 # Approx Q* for poking (Physics Engine constant)
+# belief updating and entropy
+# the model assumes that animals do not know the true "experimental context", that is,
+# the reward probability of the spouts is unknown. However, they do maintain a "belief state",
+# which is simply a probability vector over possible contexts (low, mid, high entropy).
+# bayesian updating: after receiving a reward or non-reward, the animal updates its belief using bayes' rule
 
-# Calculate probability of waiting P(W) vs Paking P(P)
-# P(W) = exp(Q_w/tau) / (exp(Q_w/tau) + exp(Q_p/tau))
-p_wait <- exp(Q_wait / mean_tau) / (exp(Q_wait / mean_tau) + exp(Q_poke / mean_tau))
+# learning rates eta_pos eta_neg: we fit separate parameters for how much weight an animal gives
+# to positive feedback (licking is rewarded) vs. negative feedback (no reward)
 
-# Simulate 10,000 bouts (Geometric Distribution)
-# Duration ~ Geometric(1 - p_wait)
-synthetic_waits <- rgeom(10000, prob = (1 - p_wait)) + 1
+# belief diffusion: between sessions, beliefs decay slightly toward a uniform distribution,
+# which is how the model represent not knowing the context or "forgetting" the context
 
-# 4. VISUAL COMPARISON ----
-ppc_data <- bind_rows(
-    tibble(Duration = empirical_waits, Type = "Empirical Data"),
-    tibble(Duration = synthetic_waits, Type = "Posterior Prediction")
-)
+# entropy (H): computed form the belief state, high entropy means the animal is confused/exploring;
+# low entropy means the animal is confident/exploiting
 
-p_ppc <- ggplot(ppc_data, aes(x = Duration, fill = Type)) +
-    geom_density(alpha = 0.5) +
-    scale_x_log10(labels = scales::comma) +
-    theme_minimal() +
-    scale_fill_manual(values = c("black", "cyan")) +
-    labs(
-        title = "Posterior Predictive Check: Wait Time Distribution",
-        subtitle = paste0("Model P(Wait) = ", round(p_wait, 3)),
-        x = "Wait Duration (Steps of 25ms)",
-        y = "Density (Log Scale)"
-    )
-p_ppc
+## value function ----
 
-ggsave("../results/figures/ppc_wait_times.png", p_ppc, width = 8, height = 6)
+# the probability of taking an action is proportional to its value (Q), evaluated
+# via softmax function.
+# Q-values are constructed from two main components:
+# extrinsic values: the dot product of the current belief state and the optimal policy values (Q*).
+# Q* is pre-computed via value iteration based on the objective mechanics of the lickometer.
+# intrinsic value:
+# kappa (information seeking): scales the entropy H. Determines if the animal is driven
+# to lick when uncertain.
+# phi (persistence): a bonus added if the animal repeats its last action
+# side (spatial bias): inherent preference for spout1 over spout2
+# beta and beta_slope (impulsivity/waiting): the baseline value of waiting, and how that
+# value decays the longer the animal has waited.
 
-pacman::p_load(tidyverse, data.table, survival, survminer, fitdistrplus)
+## hierarchical structure ---
 
-wait_bouts <- d %>%
-    mutate(
-        # Identify the target state-action pair
-        is_idle_wait = (S == "S_I" & A == "a_W")
-    ) %>%
-    # Group by session to ensure runs don't bleed across boundaries
-    group_by(ID, n_sesion) %>%
-    mutate(
-        # Unique ID for each contiguous run
-        run_id = rleid(is_idle_wait)
-    ) %>%
-    group_by(ID, n_sesion, run_id) %>%
-    summarise(
-        is_target_bout = first(is_idle_wait),
-        duration_steps = n(),
-        .groups = "drop"
-    ) %>%
-    filter(is_target_bout) %>%
-    mutate(
-        duration_sec = duration_steps * 0.025 # Convert 25ms steps to seconds
-    )
+# to separate the acute drug effects from underlying animal traits, parameters
+# are structures hierarchically:
+# population level (mu): the base effect of a cognitive context, plus the acute delta
+# effect of TCS.
+# trait level (animal random effects): stable, animal-specific offsets. modeled
+# via non-centered parametrization (z-scores * sigma_trat) to prevent divergences
+# state level (session random effects): fluctuations for a specific animal a specific day
+# Flattened into a global 1D vector to prevent out-of-bounds indexing error and optimize CPU cache
+# during HMC sampling
 
-# 3. VISUAL DIAGNOSTIC: LOG-SURVIVAL PLOT ----
-# Logic: If Beta is constant, P(Wait > t) = exp(-lambda * t).
-# Therefore, log(P(Wait > t)) should be a STRAIGHT LINE with slope -lambda.
-# Curvature indicates that Beta changes as the animal waits.
+## computational optimizations ----
 
-# Fit Kaplan-Meier survival curve
-fit_km <- survfit(Surv(duration_sec) ~ 1, data = wait_bouts)
+# reduce-sum: log-likelihood is parallelized across animals
+# vectorized session: session are indexed globally
+# entropy memoization: entropy is only recomputed when the belief state actually changes
+# that is, after feedback
 
-p_check <- ggsurvplot(
-    fit_km,
-    fun = "log", # Log-Transformation of Survival Probability
-    conf.int = TRUE,
-    ggtheme = theme_minimal()
-)
-p_check
+# 1. LOAD MODEL & DATA ---------------------------------------------------------
+message("Loading posterior samples...")
+fit <- readRDS("../results/fit_optimal_final_v2.rds")
 
-# Save the plot
-dir.create("../results/diagnostics", showWarnings = FALSE)
-ggsave("../results/diagnostics/wait_time_stationarity.png", print(p_check$plot), width = 8, height = 6)
+# 2. HMC HEALTH DIAGNOSTICS ----------------------------------------------------
+message("\n--- HMC Diagnostics ---")
+diag_summary <- fit$diagnostic_summary()
+print(diag_summary)
 
-
-# 4. STATISTICAL MODEL COMPARISON (AIC) ----
-# We fit three candidate distributions to the empirical data.
-# Note: Sub-sampling 20,000 points for speed if dataset is massive.
-set.seed(123)
-sample_data <- sample(wait_bouts$duration_sec, min(nrow(wait_bouts), 20000))
-# Ensure non-zero for Log-Normal fitting
-sample_data <- sample_data[sample_data > 0]
-
-message("Fitting distributions to empirical wait times...")
-fit_exp <- fitdist(sample_data, "exp") # Constant Beta
-fit_weibull <- fitdist(sample_data, "weibull") # Beta changes (Power Law)
-fit_lnorm <- fitdist(sample_data, "lnorm") # Beta changes (Multiplicative)
-
-# Compare Goodness-of-Fit
-aic_results <- tibble(
-    Model = c("Exponential (Constant Beta)", "Weibull (Dynamic Beta)", "Log-Normal (Dynamic Beta)"),
-    AIC = c(fit_exp$aic, fit_weibull$aic, fit_lnorm$aic)
-) %>%
-    arrange(AIC)
-
-cat("\n--- DISTRIBUTION FIT COMPARISON ---\n")
-print(aic_results)
-
-# Interpretation Helper
-best_model <- aic_results$Model[1]
-cat("\nVERDICT: The data is best described by the", best_model, ".\n")
-if (best_model != "Exponential (Constant Beta)") {
-    cat("This confirms that Beta is NON-STATIONARY. The animal's probability of re-engaging\n")
-    cat("changes the longer it waits (likely due to inertia or satiety recovery).\n")
+# Check for R-hat (Convergence) and ESS (Effective Sample Size)
+fit_summary <- fit$summary()
+bad_rhat <- fit_summary %>% filter(rhat > 1.05)
+if (nrow(bad_rhat) > 0) {
+    warning("Some parameters have R-hat > 1.05. Model may not have fully converged.")
+    print(bad_rhat %>% select(variable, rhat, ess_bulk))
 } else {
-    cat("This supports the current model. Beta appears to be effectively constant.\n")
+    message("All R-hat values look excellent (< 1.05).")
 }
+
+# 3. TRAIT CORRELATION ANALYSIS (The "Funnel/Ridge" Check) ---------------------
+# 3. TRAIT CORRELATION ANALYSIS (The "Funnel/Ridge" Check) ---------------------
+message("\n--- Analyzing Baseline Trait Correlations ---")
+
+# Extract the individual animal trait offsets (medians)
+traits_df <- fit$summary(
+    variables = c("r_animal_beta", "r_animal_kappa", "r_animal_phi"),
+    median
+) %>%
+    mutate(
+        # Extract EXACTLY what is inside the brackets (e.g., "1,1" or "1")
+        # This guarantees every single row has a unique identifier
+        unique_index = str_extract(variable, "(?<=\\[).*(?=\\])"),
+
+        # Extract the parameter name
+        param = str_extract(variable, "(beta|kappa|phi)")
+    ) %>%
+    # Keep only the columns we need to spread
+    select(unique_index, param, median) %>%
+    # Pivot wider (modern equivalent of spread)
+    pivot_wider(names_from = param, values_from = median)
+
+print("Median Baseline Traits per Index:")
+print(traits_df)
+
+# Plot the correlation matrix (ignoring the index column for the math)
+p_corr <- ggpairs(
+    traits_df %>% select(-unique_index),
+    title = "Posterior Correlation of Baseline Traits"
+)
+print(p_corr)
+ggsave("../results/trait_correlations.png", p_corr, width = 6, height = 6)
+
+# 4. DRUG EFFECT HYPOTHESIS TESTING --------------------------------------------
+message("\n--- Drug vs. Vehicle Deltas (Within-Context) ---")
+
+# The parameters we care about: the explicit differences in each context
+delta_params <- c(
+    "drug_delta_beta", "drug_delta_kappa", "drug_delta_phi",
+    "drug_delta_side", "drug_delta_beta_slope",
+    "drug_delta_eta_pos", "drug_delta_eta_neg"
+)
+
+# Extract draws
+draws_df <- as_draws_df(fit$draws(variables = delta_params))
+
+# Calculate Statistics: Median, 95% HDI, and Probability of Direction (Pd)
+# Pd = the percentage of the posterior distribution that has the same sign as the median
+results_df <- draws_df %>%
+    select(-.chain, -.iteration, -.draw) %>%
+    pivot_longer(everything(), names_to = "variable", values_to = "value") %>%
+    mutate(
+        # Parse the variable name and context index
+        param = str_remove(variable, "drug_delta_"),
+        param = str_remove(param, "\\[\\d+\\]"),
+        context_id = as.integer(str_extract(variable, "\\d+"))
+    ) %>%
+    group_by(param, context_id) %>%
+    summarise(
+        Median = median(value),
+        Lower_95 = quantile(value, 0.025),
+        Upper_95 = quantile(value, 0.975),
+        # Bayesian P-value equivalent (Probability the effect is > 0)
+        Prob_Greater_Zero = mean(value > 0),
+        .groups = "drop"
+    ) %>%
+    arrange(context_id, param)
+
+print("Target Hypothesis Tests (Drug Deltas):")
+print(results_df, n = Inf)
+
+write_csv(results_df, "../results/drug_delta_statistics.csv")
+
+# 5. VISUALIZATION OF DRUG DELTAS ----------------------------------------------
+# Forest plot for the three contexts
+p_forest <- results_df %>%
+    mutate(Context = paste("Context", context_id)) %>%
+    ggplot(aes(x = Median, y = param, color = Context)) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "black", alpha = 0.6) +
+    geom_pointrange(aes(xmin = Lower_95, xmax = Upper_95), position = position_dodge(width = 0.5)) +
+    facet_wrap(~Context, ncol = 1) +
+    ggpubr::theme_pubr() +
+    theme(legend.position = "none")
+p_forest
+
+print(p_forest)
+ggsave("../results/drug_deltas_forest.png", p_forest, width = 8, height = 10)
+
+message("\nAnalysis complete. Results and plots saved to ../results/")
+
+# absolute values ----
+# 1. Extract the pre-calculated absolute values directly from the mu_ matrices
+absolute_draws <- fit %>%
+    gather_draws(
+        mu_phi[drug_id, ctx_id],
+        mu_side[drug_id, ctx_id],
+        mu_eta_pos[drug_id, ctx_id],
+        mu_eta_neg[drug_id, ctx_id],
+        mu_beta_slope[drug_id, ctx_id]
+    ) %>%
+    # Keep only Vehicle (ID 2) and Active Drug (ID 3)
+    filter(drug_id %in% c(2, 3)) %>%
+    mutate(
+        Condition = ifelse(drug_id == 2, "Vehicle", "TCS"),
+        # Clean up the variable names for the plot (e.g., "mu_phi" -> "phi")
+        parameter = str_replace(.variable, "mu_", "")
+    )
+
+# 2. Calculate Summary Statistics
+absolute_summary <- absolute_draws %>%
+    group_by(parameter, Condition, ctx_id) %>%
+    summarise(
+        Median = median(.value),
+        Lower_95 = quantile(.value, 0.025),
+        Upper_95 = quantile(.value, 0.975),
+        .groups = "drop"
+    )
+write_csv(x = absolute_summary, file = "../results/parameter_summary.csv")
+
+# 3. Visualization: Side-by-Side Posterior Densities
+p_absolute <- absolute_draws %>%
+    ggplot(aes(x = Condition, y = .value, color = Condition, fill = Condition)) +
+    stat_halfeye(
+        alpha = 0.7,
+        .width = c(0.89, 0.95),
+        point_interval = median_hdci,
+        position = position_dodge(width = 0.6)
+    ) +
+    ggpubr::theme_pubr() +
+    facet_wrap(~ ctx_id * parameter, scales = "free")
+p_absolute

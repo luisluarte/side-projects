@@ -101,24 +101,41 @@ sessions_df <- coded_d %>%
     left_join(animal_map, by = "ID") %>%
     mutate(
         phys_ctx_id = case_when(
-            true_context == "C_T" ~ 1, true_context == "C_S2a" ~ 2,
-            true_context == "C_S2b" ~ 3, true_context == "C_S3a" ~ 4, TRUE ~ 5
+            true_context == "C_T" ~ 1,
+            true_context == "C_S2a" ~ 2,
+            true_context == "C_S2b" ~ 3,
+            true_context == "C_S3a" ~ 4,
+            TRUE ~ 5
         ),
-        droga_mapped = case_when(
-            droga %in% c("na_na_na_na", "veh_na_na_na") ~ "Vehicle",
-            TRUE ~ droga
+        treatment_category = case_when(
+            droga == "na_na_na_na" ~ "Baseline_NoInj",
+            droga == "veh_na_na_na" ~ "Vehicle",
+            TRUE ~ "Active_Drug"
         )
     ) %>%
     group_by(animal_idx, n_sesion) %>%
     summarise(
         phys_ctx = first(phys_ctx_id),
-        cog_ctx = case_when(first(droga_mapped) == "Vehicle" & phys_ctx == 1 ~ 1, phys_ctx %in% 2:3 ~ 2, TRUE ~ 3),
-        drug_name = first(droga_mapped),
+        cog_ctx = case_when(
+            phys_ctx == 1 ~ 1, # context 1 (C_T)
+            phys_ctx %in% 2:3 ~ 2, # context 2 (C_S2a/b)
+            TRUE ~ 3
+        ),
+        treatment_name = first(treatment_category),
+        actual_drug = first(droga),
         .groups = "drop"
     )
 
-drug_map <- tibble(drug_name = unique(sessions_df$drug_name)) %>% mutate(drug_id = row_number())
-sessions_df <- sessions_df %>% left_join(drug_map, by = "drug_name")
+treatment_levels <- c("Baseline_NoInj", "Vehicle", "Active_Drug")
+sessions_df <- sessions_df %>%
+    mutate(
+        drug_id = match(treatment_name, treatment_levels)
+    )
+
+drug_map <- tibble(
+    drug_name = treatment_levels,
+    drug_id = 1:3
+)
 
 compressed_steps <- coded_d %>%
     left_join(animal_map, by = "ID") %>%
@@ -183,14 +200,14 @@ fit <- mod$sample(
     data = stan_data,
     chains = 3,
     parallel_chains = 3,
-    threads_per_chain = 2,
+    threads_per_chain = 4,
     iter_warmup = 1000,
     iter_sampling = 1000,
-    max_treedepth = 12,
-    adapt_delta = 0.90,
+    max_treedepth = 10,
+    adapt_delta = 0.85,
     init = 0.1,
     refresh = 10
 )
 
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/fit_optimal_final.rds")
+fit$save_object("../results/fit_optimal_final_v2.rds")
