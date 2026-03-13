@@ -21,7 +21,7 @@ functions {
                        matrix mu_beta, matrix mu_kappa, matrix mu_phi, matrix mu_side,
                        matrix mu_eta_pos, matrix mu_eta_neg, matrix mu_beta_slope,
                        vector sigma_beta_session, vector sigma_kappa_session,
-                       matrix r_animal_beta, matrix r_animal_kappa, matrix r_animal_phi,
+                       matrix r_animal_beta, matrix r_animal_kappa, matrix r_animal_phi, matrix r_animal_beta_slope,
                        vector beta_session_raw, vector kappa_session_raw,
                        array[,,,] real Q_star, 
                        matrix context_probs,
@@ -50,6 +50,7 @@ functions {
       real trait_b = r_animal_beta[animal_idx, 1];
       real trait_k = r_animal_kappa[animal_idx, 1];
       real trait_phi = r_animal_phi[animal_idx, 1];
+      real trait_b_slope = r_animal_beta_slope[animal_idx, 1];
 
       for (s in sessions_per_animal_start[animal_idx]:sessions_per_animal_end[animal_idx]) {
         int cog_ctx = session_cognitive_context[s]; 
@@ -66,7 +67,7 @@ functions {
         real k_s = mu_kappa[d_idx, cog_ctx] + trait_k + sigma_kappa_session[cog_ctx] * kappa_session_raw[s];
         real phi_s = mu_phi[d_idx, cog_ctx] + trait_phi;
         real side_s = mu_side[d_idx, cog_ctx];
-        real b_slope = mu_beta_slope[d_idx, cog_ctx];
+        real b_slope = mu_beta_slope[d_idx, cog_ctx] + trait_b_slope;
         
         // real ep = exp(fmin(mu_eta_pos[d_idx, cog_ctx], 5.0));
         // real en = exp(fmin(mu_eta_neg[d_idx, cog_ctx], 5.0));
@@ -215,10 +216,12 @@ parameters {
   real<lower=0> sigma_beta_trait;
   real<lower=0> sigma_kappa_trait;
   real<lower=0> sigma_phi_trait;
+  real<lower=0> sigma_beta_slope_trait;
   
   vector[N_animals] beta_trait_raw;
   vector[N_animals] kappa_trait_raw;
   vector[N_animals] phi_trait_raw;
+  vector[N_animals] beta_slope_trait_raw;
 
   vector<lower=1e-6>[N_cognitive_contexts] sigma_beta_session;
   vector<lower=1e-6>[N_cognitive_contexts] sigma_kappa_session;
@@ -243,6 +246,7 @@ transformed parameters {
   matrix[N_animals, 1] r_animal_beta = to_matrix(sigma_beta_trait * beta_trait_raw, N_animals, 1);
   matrix[N_animals, 1] r_animal_kappa = to_matrix(sigma_kappa_trait * kappa_trait_raw, N_animals, 1);
   matrix[N_animals, 1] r_animal_phi = to_matrix(sigma_phi_trait * phi_trait_raw, N_animals, 1);
+  matrix[N_animals, 1] r_animal_beta_slope = to_matrix(sigma_beta_slope_trait * beta_slope_trait_raw, N_animals, 1);
 
   // The Orthogonal Mapping Matrix
   for (c in 1:N_cognitive_contexts) {
@@ -276,20 +280,20 @@ transformed parameters {
 }
 
 model {
-  base_beta       ~ normal(1.0, 1.0);
+  base_beta       ~ normal(0, 2.0);
   base_kappa      ~ normal(0.1, 0.5);
-  base_phi        ~ normal(0, 1.0);
+  base_phi        ~ normal(0, 2.0);
   base_side       ~ normal(0, 0.5);
-  base_beta_slope ~ normal(0, 1.0);
-  base_eta_pos    ~ normal(0, 0.5);
-  base_eta_neg    ~ normal(0, 0.5);
+  base_beta_slope ~ normal(0, 5.0);
+  base_eta_pos    ~ normal(0, 1.0);
+  base_eta_neg    ~ normal(0, 1.0);
   
   // Priors: Vehicle Shifts (Context/Injection Effects)
-  veh_shift_beta       ~ normal(0, 0.5);
-  veh_shift_kappa      ~ normal(0, 0.25);
-  veh_shift_phi        ~ normal(0, 0.5);
-  veh_shift_side       ~ normal(0, 0.25);
-  veh_shift_beta_slope ~ normal(0, 0.5);
+  veh_shift_beta       ~ normal(0, 1.0);
+  veh_shift_kappa      ~ normal(0, 0.5);
+  veh_shift_phi        ~ normal(0, 1.0);
+  veh_shift_side       ~ normal(0, 0.5);
+  veh_shift_beta_slope ~ normal(0, 2.0);
   veh_shift_eta_pos    ~ normal(0, 0.25);
   veh_shift_eta_neg    ~ normal(0, 0.25);
 
@@ -304,9 +308,11 @@ model {
   beta_trait_raw  ~ std_normal();
   kappa_trait_raw ~ std_normal();
   phi_trait_raw   ~ std_normal();
+  beta_slope_trait_raw ~ std_normal();
   sigma_beta_trait  ~ normal(0, 1);
   sigma_kappa_trait ~ normal(0, 1);
   sigma_phi_trait   ~ normal(0, 1);
+  sigma_beta_slope_trait ~ normal(0, 1);
 
   sigma_beta_session  ~ normal(0, 1);
   sigma_kappa_session ~ normal(0, 1);
@@ -329,7 +335,7 @@ model {
                        mu_beta, mu_kappa, mu_phi, mu_side,
                        mu_eta_pos, mu_eta_neg, mu_beta_slope,
                        sigma_beta_session, sigma_kappa_session, 
-                       r_animal_beta, r_animal_kappa, r_animal_phi,
+                       r_animal_beta, r_animal_kappa, r_animal_phi, r_animal_beta_slope,
                        beta_session_raw, kappa_session_raw, 
                        Q_star, context_probs,
                        belief_diffusion,

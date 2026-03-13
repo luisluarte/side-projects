@@ -201,12 +201,12 @@ fit <- mod$sample(
     chains = 3,
     parallel_chains = 3,
     threads_per_chain = 4,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
-    max_treedepth = 10,
-    adapt_delta = 0.85,
+    iter_warmup = 2000,
+    iter_sampling = 2000,
+    max_treedepth = 13,
+    adapt_delta = 0.95,
     init = 0.1,
-    refresh = 10
+    refresh = 1
 )
 
 dir.create("../results", showWarnings = FALSE)
