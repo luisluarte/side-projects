@@ -31,6 +31,8 @@ d <- load_experiment(metadataFileName = metadata, data_directory_path = data_pat
     )
 d
 
+write_rds(x = d, file = "../data/lickometer_data.rds")
+
 # create data ----
 # set timestamp relative for each animal
 TIME_STEP <- 25

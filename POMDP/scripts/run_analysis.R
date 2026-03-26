@@ -4,6 +4,7 @@
 # 1. Threading: 3 Chains x 2 Threads (Physical Core Saturation)
 # 2. Safety: PRIMITIVE ARRAYS + NO HEAP ALLOCS inside loop.
 # ==============================================================================
+message("starting fit...")
 
 pacman::p_load(
     tidyverse, cmdstanr, posterior, parallel, data.table, this.path
@@ -23,13 +24,41 @@ coded_d <- d %>%
         ),
         S = case_when(
             S == "S_I" ~ 1, S == "S_P1" ~ 2, S == "S_P2" ~ 3, S == "S_Armed" ~ 4,
-            S %in% paste0("S_", 1:4, "_0") ~ 5, S %in% paste0("S_0_", 1:4) ~ 6,
+
+            # UNROLL THE SPOUT 1 CHAIN (Matches sid = 4 + k)
+            S == "S_1_0" ~ 5,
+            S == "S_2_0" ~ 6,
+            S == "S_3_0" ~ 7,
+            S == "S_4_0" ~ 8,
+
+            # UNROLL THE SPOUT 2 CHAIN (Matches sid = 8 + k)
+            S == "S_0_1" ~ 9,
+            S == "S_0_2" ~ 10,
+            S == "S_0_3" ~ 11,
+            S == "S_0_4" ~ 12,
             S == "S_CR" ~ 99, S == "S_CN" ~ 100,
             .default = 1
         )
     ) %>%
     filter(!is.na(A), !is.na(S)) %>%
     mutate(next_S = lead(S, default = 1))
+
+message("trimming baseline sessions per animal...")
+
+coded_d <- coded_d %>%
+    group_by(ID) %>%
+    mutate(
+        is_baseline = (droga == "na_na_na_na"),
+        baseline_rank = if_else(
+            is_baseline,
+            dense_rank(n_sesion),
+            NA_integer_
+        ),
+        max_baseline = max(baseline_rank, na.rm = TRUE)
+    ) %>%
+    filter(!is_baseline | baseline_rank >= (max_baseline - 2)) %>%
+    ungroup() %>%
+    select(-is_baseline, -baseline_rank, -max_baseline)
 
 # 2. SUBJECT-SPECIFIC PHYSICS CALIBRATION ----
 message("Calibrating individual motor physics...")
@@ -46,53 +75,6 @@ animal_physics <- coded_d %>%
         travel_cost_steps = 15,
         poke_cost_steps = 2
     )
-
-# 3. VALUE ITERATION: GENERATING Q_STAR_FINAL ----
-GAMMA <- 0.99
-N_LICK_CHAIN <- 5
-N_PHYS_CONTEXTS <- 5
-N_STATES <- 100
-N_ACTIONS <- 6
-N_ANIMALS <- nrow(animal_physics)
-CTX_PROBS <- matrix(c(0.99, 0.99, 0.50, 0.99, 0.99, 0.50, 0.25, 0.50, 0.50, 0.25), ncol = 2, byrow = T)
-
-calc_chain_value <- function(p_reward, k, lick_cost) {
-    v_outcome <- p_reward
-    licks_needed <- N_LICK_CHAIN - k
-    if (licks_needed <= 0) {
-        return(v_outcome)
-    }
-    return((GAMMA^(lick_cost * licks_needed)) * v_outcome)
-}
-
-Q_raw <- array(0, dim = c(N_ANIMALS, N_PHYS_CONTEXTS, N_STATES, N_ACTIONS))
-
-for (a in 1:N_ANIMALS) {
-    p_a <- animal_physics[a, ]
-    L_C <- p_a$lick_cost_steps
-    T_C <- p_a$travel_cost_steps
-    P_C <- p_a$poke_cost_steps
-    for (c in 1:N_PHYS_CONTEXTS) {
-        p1 <- CTX_PROBS[c, 1]
-        p2 <- CTX_PROBS[c, 2]
-        for (k in 0:4) {
-            sid <- if (k == 0) 4 else (4 + k)
-            Q_raw[a, c, sid, 5] <- (GAMMA^(if (k == 0) T_C else L_C)) * calc_chain_value(p1, k + 1, L_C)
-        }
-        for (k in 0:4) {
-            sid <- if (k == 0) 4 else (8 + k)
-            Q_raw[a, c, sid, 6] <- (GAMMA^(if (k == 0) T_C else L_C)) * calc_chain_value(p2, k + 1, L_C)
-        }
-        v_a <- max(Q_raw[a, c, 4, 5], Q_raw[a, c, 4, 6])
-        Q_raw[a, c, 3, 4] <- v_a * GAMMA
-        Q_raw[a, c, 2, 3] <- Q_raw[a, c, 3, 4] * GAMMA
-        Q_raw[a, c, 1, 2] <- Q_raw[a, c, 2, 3] * (GAMMA^P_C)
-    }
-}
-
-# RESHAPE: [Animal, Context, State, Action] -> [Context, Animal, State, Action]
-# This matches the new array[,,,] declaration in Stan
-Q_star_final <- aperm(Q_raw, c(2, 1, 3, 4))
 
 # 4. DATA MAPPING & SESSION INDEXING ----
 animal_map <- tibble(ID = animal_physics$ID) %>% mutate(animal_idx = row_number())
@@ -139,21 +121,42 @@ drug_map <- tibble(
 
 compressed_steps <- coded_d %>%
     left_join(animal_map, by = "ID") %>%
-    mutate(run_id = rleid(animal_idx, n_sesion, S, A)) %>%
-    group_by(run_id) %>%
+    mutate(
+        # 1. Identify the standard consecutive blocks
+        base_run_id = data.table::rleid(animal_idx, n_sesion, S, A)
+    ) %>%
+    group_by(base_run_id) %>%
     summarise(
-        animal_idx = first(animal_idx), n_sesion = first(n_sesion),
-        S = first(S), A = first(A), next_S = first(next_S), weight = n(),
+        animal_idx = first(animal_idx),
+        n_sesion = first(n_sesion),
+        S = first(S),
+        A = first(A),
+        next_S = last(next_S),
+        weight = n(),
+        .groups = "drop"
+    ) %>%
+    # mutate(weight = if_else(weight > 400, 400, weight)) %>%
+    arrange(base_run_id)
+
+session_pointers <- compressed_steps %>%
+    ungroup() %>%
+    mutate(global_idx = row_number()) %>% # Assigns 1 to 90303
+    group_by(animal_idx, n_sesion) %>%
+    summarise(
+        start_idx = min(global_idx),
+        end_idx = max(global_idx),
         .groups = "drop"
     )
 
-session_pointers <- compressed_steps %>%
-    group_by(animal_idx, n_sesion) %>%
-    summarise(start_idx = min(row_number()), end_idx = max(row_number()), .groups = "drop")
-
 animal_pointers <- session_pointers %>%
+    ungroup() %>%
+    mutate(global_session_idx = row_number()) %>% # Assigns 1 to 184
     group_by(animal_idx) %>%
-    summarise(s_start = min(row_number()), s_end = max(row_number()), .groups = "drop")
+    summarise(
+        s_start = min(global_session_idx),
+        s_end = max(global_session_idx),
+        .groups = "drop"
+    )
 
 # 5. EXECUTION (SAFE MODE) ----
 
@@ -176,38 +179,45 @@ stan_data <- list(
     start_idx = session_pointers$start_idx,
     end_idx = session_pointers$end_idx,
     N_actions = 6, N_states = 100,
-    # PASSING ARRAY DIRECTLY
-    Q_star = Q_star_final,
-    context_probs = CTX_PROBS,
     ID_IDLE = 1, ID_WAIT = 1, ID_LICK1 = 5, ID_LICK2 = 6,
     ID_REWARD_STATE = 99, ID_NOREWARD_STATE = 100,
-    grainsize = max(1, as.integer(nrow(animal_map) / 6))
+    grainsize = ceiling(nrow(animal_map) / (3 * 2))
 )
+write_rds(stan_data, "../data/processed/stan_behavior_data.rds")
 
+message("loading model...")
 # SAFETY UPDATE: Removed -march=native
 # Arch Linux + Zen 5 + AVX512 + reduce_sum is creating alignment crashes.
 # -O3 is stable and fast enough.
 mod <- cmdstan_model(
-    "pomdp_model.stan",
+    "beta_bernoulli_model.stan",
+    force_recompile = TRUE,
     cpp_options = list(
-        stan_threads = TRUE,
-        "CXXFLAGS += -O3"
+        stan_threads = TRUE
     )
 )
+
 
 # Threading: 3 Chains x 2 Threads
 fit <- mod$sample(
     data = stan_data,
-    chains = 3,
-    parallel_chains = 3,
-    threads_per_chain = 4,
-    iter_warmup = 2000,
-    iter_sampling = 2000,
-    max_treedepth = 13,
-    adapt_delta = 0.95,
-    init = 0.1,
-    refresh = 1
+    chains = 4,
+    parallel_chains = 4,
+    threads_per_chain = 3,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    max_treedepth = 12,
+    adapt_delta = 0.90,
+    refresh = 1,
+    init = 0.1
 )
 
+# fit <- mod$pathfinder(
+#     data = stan_data,
+#     num_paths = 4,
+#     single_path_draws = 1000,
+#     num_threads = 4
+# )
+
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/fit_optimal_final_v2.rds")
+fit$save_object("../results/fit_optimal_final_v8.rds")
