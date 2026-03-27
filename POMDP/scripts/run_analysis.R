@@ -198,21 +198,8 @@ mod <- cmdstan_model(
 )
 
 
-# # Threading: 3 Chains x 2 Threads
-# fit <- mod$sample(
-#     data = stan_data,
-#     chains = 4,
-#     parallel_chains = 4,
-#     threads_per_chain = 3,
-#     iter_warmup = 1000,
-#     iter_sampling = 1000,
-#     max_treedepth = 12,
-#     adapt_delta = 0.90,
-#     refresh = 1,
-#     init = 0.1
-# )
-
-fit <- mod$pathfinder(
+message("launching pathfinder")
+fit_pf <- mod$pathfinder(
     data = stan_data,
     num_paths = 4,
     single_path_draws = 1000,
@@ -220,11 +207,27 @@ fit <- mod$pathfinder(
 )
 
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/pathfinder_model.rds")
-print(fit$summary("mu_kappa"))
+fit_pf$save_object("../results/pathfinder_model.rds")
+print(fit_pf$summary("mu_kappa"))
 print("---------------------")
-print(fit$summary("mu_phi"))
+print(fit_pf$summary("mu_phi"))
 print("---------------------")
-print(fit$summary("mu_side"))
+print(fit_pf$summary("mu_side"))
 print("---------------------")
-print(fit$summary(variable = "epsilon"))
+print(fit_pf$summary(variable = "epsilon"))
+
+# Threading: 3 Chains x 2 Threads
+message("passing pathfinder shape to NUTS")
+fit <- mod$sample(
+    data = stan_data,
+    chains = 4,
+    parallel_chains = 4,
+    threads_per_chain = 2,
+    iter_warmup = 1000,
+    iter_sampling = 1000,
+    max_treedepth = 12,
+    adapt_delta = 0.90,
+    refresh = 1,
+    init = fit_pf
+)
+message("MCMC fit done!")
