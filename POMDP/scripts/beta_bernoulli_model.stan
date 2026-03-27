@@ -234,7 +234,7 @@ functions {
                       // spout switching in the 100/100 context as epsilon related rather
                       // than a stupid high kappa value
                       //lp += log_mix(current_epsilon, log_random_prob, log_softmax);\
-                      lp += categorical_logit_lpmf(act | Q_step);
+                      // lp += categorical_logit_lpmf(act | Q_step);
                       // we move a step and re-do
                       current_wait_time += dt;
                   }
