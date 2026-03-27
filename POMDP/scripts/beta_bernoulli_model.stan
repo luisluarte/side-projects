@@ -457,7 +457,7 @@ model {
   // information
   // these are reasonable starting points, deviation cant be to big
   // otherwise softmax can easily break
-  array[N_cognitive_contexts] real expected_u = {0.001, 0.627, 0.627};
+  array[N_cognitive_contexts] real expected_u = {0.001, 0.346, 0.627};
   base_beta       ~ normal(0, 1.5);
   base_phi        ~ normal(0, 1.5);
   base_side       ~ normal(0, 1.5);
