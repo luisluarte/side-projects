@@ -492,8 +492,8 @@ model {
  // so its dragged towards 0, in the 100/50 it can exists
  // but logically 0.5/0.25 > 100/50 if kappa matters at all
   for (c in 1:N_cognitive_contexts){
-      veh_shift_kappa[c] ~ normal(0, 1.0 * expected_u[c]);
-      drug_delta_kappa[c] ~ normal(0, 1.0 * expected_u[c]);
+      veh_shift_kappa[c] ~ normal(0, 2.0 * expected_u[c]);
+      drug_delta_kappa[c] ~ normal(0, 2.0 * expected_u[c]);
   }
 
   // trait priors are just 0, 1 because of non-centered parametrization
