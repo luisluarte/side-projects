@@ -231,3 +231,5 @@ fit <- mod$sample(
     init = fit_pf
 )
 message("MCMC fit done!")
+dir.create("../results", showWarnings = FALSE)
+fit$save_object("../results/beta_bernoulli_model.rds")
