@@ -222,3 +222,5 @@ fit <- mod$pathfinder(
 dir.create("../results", showWarnings = FALSE)
 fit$save_object("../results/pathfinder_model.rds")
 print(fit$summary("mu_kappa"))
+print("---------------------")
+print(fit$summary(variable = "epsilon"))

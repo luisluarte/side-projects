@@ -48,7 +48,7 @@ functions {
                        // these are the 'random effects'
                        matrix r_animal_beta, matrix r_animal_kappa, matrix r_animal_phi, matrix r_animal_beta_slope,
                        // this is the global 'pure' randomness parameter
-                       matrix epsilon,
+                       real epsilon,
                        // possible states and actions
                        int N_actions, int N_states,
                        int ID_IDLE, int ID_WAIT, int ID_LICK1, int ID_LICK2,
@@ -85,7 +85,7 @@ functions {
         // which drug was used 1: nothing, 2: vehicle, 3: tcs
         int d_idx = session_drug[s];
         // the pure randomness parameter is evaluated per session
-        real current_epsilon = epsilon[d_idx, cog_ctx];
+        //real current_epsilon = epsilon[d_idx, cog_ctx];
 
         int last_lick_spout = 0;
         real current_wait_time = 0;
@@ -219,9 +219,8 @@ functions {
                       // as the rescorla wagner, but I removed the tau parameter
                       // as its now explictly modeled, and leads to issues of
                       // model non-identifiable parameters
-                      // this is to clamp q-values with boundary at 99.9999
-                      for (a in 1:N_actions) Q_step[a] = fmax(fmin(Q_step[a], 15.0), -15.0);
                       real log_softmax = categorical_logit_lpmf(act | Q_step);
+                      lp += log_mix(epsilon, log_random_prob, log_softmax);
                       // this part is to fix super weird results when both spouts are 100%
                       // when the animal does something we ask is it just random behavior
                       // or is some sort of calculation, log_mix takes both of those
@@ -234,7 +233,8 @@ functions {
                       // independent of everything, this allows the model to consider
                       // spout switching in the 100/100 context as epsilon related rather
                       // than a stupid high kappa value
-                      lp += log_mix(current_epsilon, log_random_prob, log_softmax);
+                      //lp += log_mix(current_epsilon, log_random_prob, log_softmax);\
+                      lp += categorical_logit_lpmf(act | Q_step);
                       // we move a step and re-do
                       current_wait_time += dt;
                   }
@@ -269,14 +269,12 @@ functions {
                   // in other words, how likely was that the animal decided
                   // to wait at these three time points given the particular
                   // parametrization
-                  for (a in 1:N_actions) {
-                      Q_start[a] = fmax(fmin(Q_start[a], 15.0), -15.0);
-                      Q_mid[a]   = fmax(fmin(Q_mid[a], 15.0), -15.0);
-                      Q_end[a]   = fmax(fmin(Q_end[a], 15.0), -15.0);
-                  }
-                  real lp_start = log_mix(current_epsilon, log_random_prob, categorical_logit_lpmf(act | Q_start));
-                  real lp_mid   = log_mix(current_epsilon, log_random_prob, categorical_logit_lpmf(act | Q_mid));
-                  real lp_end   = log_mix(current_epsilon, log_random_prob, categorical_logit_lpmf(act | Q_end));
+                  real lp_start = log_mix(epsilon, log_random_prob, categorical_logit_lpmf(act | Q_start));
+                  real lp_mid   = log_mix(epsilon, log_random_prob, categorical_logit_lpmf(act | Q_mid));
+                  real lp_end   = log_mix(epsilon, log_random_prob, categorical_logit_lpmf(act | Q_end));
+                  // real lp_start = categorical_logit_lpmf(act | Q_start);
+                  // real lp_mid = categorical_logit_lpmf(act | Q_mid);
+                  // real lp_end = categorical_logit_lpmf(act | Q_end);
 
                   // calculus integration rule (simpson's)
                   // basically we need to get the area (likelihood) under the curve
@@ -300,9 +298,9 @@ functions {
               // in other words we know that the animal prefered something else
               // to wait, so the alternative that won over waiting is likely
               // to be highly valued
-              for (a in 1:N_actions) Q_base[a] = fmax(fmin(Q_base[a], 15.0), -15.0);
               real log_softmax = categorical_logit_lpmf(act | Q_base);
-              lp += w * log_mix(current_epsilon, log_random_prob, log_softmax);
+              lp += w * log_mix(epsilon, log_random_prob, log_softmax);
+              // lp += w * categorical_logit_lpmf(act | Q_base);
               // set the clock 0 the animal is now not-waiting
               current_wait_time = 0;
           }
@@ -374,7 +372,7 @@ parameters {
   real base_side;
   real base_beta_slope;
   // randomness per drug per context
-  matrix<lower=0, upper=1>[N_drugs, N_cognitive_contexts] epsilon;
+  real<lower=0, upper=1> epsilon;
 
   // VEHICLE SHIFT effect of context + veh over baseline
   // we need this because we included baseline data, so we model
@@ -465,12 +463,8 @@ model {
   base_beta_slope ~ normal(0, 1.5);
   base_kappa      ~ normal(0, 1.5);
 
-  // adding the epsilon per drug per context
-  for (d in 1:N_drugs) {
-    for (c in 1:N_cognitive_contexts){
-      epsilon[d, c] ~ beta(1, 19);
-    }
-  }
+  // adding the global epsilon
+  epsilon ~ beta(1, 19);
 
   // these are the delta priors
   // similar to a null hypothesis we assume centered at 0
