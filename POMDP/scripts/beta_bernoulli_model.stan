@@ -465,7 +465,7 @@ model {
   base_kappa      ~ normal(0, 1.5);
 
   // adding the global epsilon
-  epsilon ~ beta(1, 19);
+  epsilon ~ beta(1, 1);
 
   // these are the delta priors
   // similar to a null hypothesis we assume centered at 0
