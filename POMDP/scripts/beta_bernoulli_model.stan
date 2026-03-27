@@ -167,8 +167,8 @@ functions {
           // given all the the other Q values, also here I added the side
           // bias, as its included only in one spout, a positive value
           // means left side pref, a negative right side pref
-          Q_base[ID_LICK1] = (ev1 * 6.0) + side_s;
-          Q_base[ID_LICK2] = (ev2 * 6.0);
+          Q_base[ID_LICK1] = (ev1 * 1.0) + side_s;
+          Q_base[ID_LICK2] = (ev2 * 1.0);
 
           // now we get into the task logic more deeply
           // we need to know from where the animal is coming from
