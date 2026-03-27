@@ -217,7 +217,7 @@ print("---------------------")
 print(fit_pf$summary(variable = "epsilon"))
 
 # Threading: 3 Chains x 2 Threads
-message("passing pathfinder shape to NUTS")
+message("--------- starting MCMC -----------")
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
@@ -228,7 +228,7 @@ fit <- mod$sample(
     max_treedepth = 12,
     adapt_delta = 0.90,
     refresh = 1,
-    init = fit_pf
+    init = 0.1
 )
 message("MCMC fit done!")
 dir.create("../results", showWarnings = FALSE)
