@@ -43,7 +43,7 @@ functions {
                        array[] int session_cognitive_context,
                        array[] int session_drug,
                        // mu parameters are global-level parameters
-                       matrix mu_beta, matrix mu_kappa, matrix mu_phi, matrix mu_side,
+                       matrix mu_beta, matrix mu_kappa, vector mu_phi, matrix mu_side,
                        matrix mu_beta_slope,
                        // these are the 'random effects'
                        matrix r_animal_beta, matrix r_animal_kappa, matrix r_animal_phi, matrix r_animal_beta_slope,
@@ -107,7 +107,7 @@ functions {
         // sort of idea
         real b_s = mu_beta[d_idx, cog_ctx] + trait_b;
         real k_s = mu_kappa[d_idx, cog_ctx] + trait_k;
-        real phi_s = mu_phi[d_idx, cog_ctx] + trait_phi;
+        real phi_s = mu_phi[d_idx] + trait_phi;
         real side_s = mu_side[d_idx, cog_ctx];
         real b_slope = mu_beta_slope[d_idx, cog_ctx] + trait_b_slope;
 
@@ -380,7 +380,7 @@ parameters {
   // and we consider that delta our effect in vehicle
   vector[N_cognitive_contexts] veh_shift_beta;
   vector[N_cognitive_contexts] veh_shift_kappa;
-  vector[N_cognitive_contexts] veh_shift_phi;
+  real veh_shift_phi;
   vector[N_cognitive_contexts] veh_shift_side;
   vector[N_cognitive_contexts] veh_shift_beta_slope;
 
@@ -388,7 +388,7 @@ parameters {
   // tcs - veh
   vector[N_cognitive_contexts] drug_delta_beta;
   vector[N_cognitive_contexts] drug_delta_kappa;
-  vector[N_cognitive_contexts] drug_delta_phi;
+  real drug_delta_phi;
   vector[N_cognitive_contexts] drug_delta_side;
   vector[N_cognitive_contexts] drug_delta_beta_slope;
 
@@ -414,7 +414,7 @@ transformed parameters {
   // we need each parameter per drug per context
   matrix[N_drugs, N_cognitive_contexts] mu_beta;
   matrix[N_drugs, N_cognitive_contexts] mu_kappa;
-  matrix[N_drugs, N_cognitive_contexts] mu_phi;
+  vector[N_drugs] mu_phi;
   matrix[N_drugs, N_cognitive_contexts] mu_side;
   matrix[N_drugs, N_cognitive_contexts] mu_beta_slope;
 
@@ -426,25 +426,26 @@ transformed parameters {
   matrix[N_animals, 1] r_animal_phi = to_matrix(sigma_phi_trait * phi_trait_raw, N_animals, 1);
   matrix[N_animals, 1] r_animal_beta_slope = to_matrix(sigma_beta_slope_trait * beta_slope_trait_raw, N_animals, 1);
 
+  mu_phi[1]          = base_phi;
+  mu_phi[2]          = base_phi        + veh_shift_phi[c];
+  mu_phi[3]          = mu_phi[2]        + drug_delta_phi[c];
+
   for (c in 1:N_cognitive_contexts) {
     // baseline remains constant
     mu_beta[1, c]         = base_beta;
     mu_kappa[1, c]        = base_kappa;
-    mu_phi[1, c]          = base_phi;
     mu_side[1, c]         = base_side;
     mu_beta_slope[1, c]   = base_beta_slope;
 
     // veh is baseline + the shift from injection
     mu_beta[2, c]         = base_beta       + veh_shift_beta[c];
     mu_kappa[2, c]        = base_kappa      + veh_shift_kappa[c];
-    mu_phi[2, c]          = base_phi        + veh_shift_phi[c];
     mu_side[2, c]         = base_side       + veh_shift_side[c];
     mu_beta_slope[2, c]   = base_beta_slope + veh_shift_beta_slope[c];
 
     // tcs is is (baseline + the shift) + the effect of tcs over veh
     mu_beta[3, c]         = mu_beta[2, c]       + drug_delta_beta[c];
     mu_kappa[3, c]        = mu_kappa[2, c]      + drug_delta_kappa[c];
-    mu_phi[3, c]          = mu_phi[2, c]        + drug_delta_phi[c];
     mu_side[3, c]         = mu_side[2, c]       + drug_delta_side[c];
     mu_beta_slope[3, c]   = mu_beta_slope[2, c] + drug_delta_beta_slope[c];
   }
