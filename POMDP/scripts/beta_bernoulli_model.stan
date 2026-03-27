@@ -427,8 +427,8 @@ transformed parameters {
   matrix[N_animals, 1] r_animal_beta_slope = to_matrix(sigma_beta_slope_trait * beta_slope_trait_raw, N_animals, 1);
 
   mu_phi[1]          = base_phi;
-  mu_phi[2]          = base_phi        + veh_shift_phi[c];
-  mu_phi[3]          = mu_phi[2]        + drug_delta_phi[c];
+  mu_phi[2]          = base_phi        + veh_shift_phi;
+  mu_phi[3]          = mu_phi[2]        + drug_delta_phi;
 
   for (c in 1:N_cognitive_contexts) {
     // baseline remains constant
