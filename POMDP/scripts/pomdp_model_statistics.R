@@ -25,7 +25,8 @@ setwd(this.path::here())
 raw_data <- read_rds(file = "../data/lickometer_data.rds")
 
 # load fit ----
-fit <- read_rds("../results/fit_optimal_final_v8.rds")
+fit <- read_rds("../results/fit_optimal_final_v7.rds")
+fit <- read_rds("../results/pathfinder_model.rds")
 
 # data for bayesian ppc ----
 discrete_data <- read_rds("../data/processed/stan_behavior_data.rds")

@@ -198,26 +198,27 @@ mod <- cmdstan_model(
 )
 
 
-# Threading: 3 Chains x 2 Threads
-fit <- mod$sample(
-    data = stan_data,
-    chains = 4,
-    parallel_chains = 4,
-    threads_per_chain = 3,
-    iter_warmup = 1000,
-    iter_sampling = 1000,
-    max_treedepth = 12,
-    adapt_delta = 0.90,
-    refresh = 1,
-    init = 0.1
-)
-
-# fit <- mod$pathfinder(
+# # Threading: 3 Chains x 2 Threads
+# fit <- mod$sample(
 #     data = stan_data,
-#     num_paths = 4,
-#     single_path_draws = 1000,
-#     num_threads = 4
+#     chains = 4,
+#     parallel_chains = 4,
+#     threads_per_chain = 3,
+#     iter_warmup = 1000,
+#     iter_sampling = 1000,
+#     max_treedepth = 12,
+#     adapt_delta = 0.90,
+#     refresh = 1,
+#     init = 0.1
 # )
 
+fit <- mod$pathfinder(
+    data = stan_data,
+    num_paths = 4,
+    single_path_draws = 1000,
+    num_threads = 4
+)
+
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/fit_optimal_final_v8.rds")
+fit$save_object("../results/pathfinder_model.rds")
+print(fit$summary("mu_kappa"))

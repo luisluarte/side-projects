@@ -28,7 +28,7 @@
 // and some definitions to optimize likelihood computation
 functions {
   real partial_log_lik(
-      # these are just data indices
+      // these are just data indices
       array[] int animal_slice,
                        int start, int end,
                        array[] int sessions_per_animal_start,
@@ -361,8 +361,8 @@ data {
 parameters {
   // BASELINE
   real base_beta;
-  real base_kappa;
-  real base_phi;
+  real<lower=0> base_kappa;
+  real<lower=0> base_phi;
   real base_side;
   real base_beta_slope;
   // randomness per drug per context
@@ -457,7 +457,7 @@ model {
   base_beta_slope ~ normal(0, 1.5);
   base_kappa      ~ normal(0, 1.5);
 
-  // adding the epsilong per drug per context
+  // adding the epsilon per drug per context
   for (d in 1:N_drugs) {
     for (c in 1:N_cognitive_contexts){
       epsilon[d, c] ~ beta(1, 19);
@@ -490,10 +490,10 @@ model {
   phi_trait_raw   ~ std_normal();
   beta_slope_trait_raw ~ std_normal();
 
-  sigma_beta_trait  ~ normal(0, 1.0);
-  sigma_phi_trait   ~ normal(0, 1.0);
-  sigma_beta_slope_trait ~ normal(0, 1.0);
-  sigma_kappa_trait ~ normal(0, 1.0);
+  sigma_beta_trait  ~ normal(0, 0.5);
+  sigma_phi_trait   ~ normal(0, 0.5);
+  sigma_beta_slope_trait ~ normal(0, 0.5);
+  sigma_kappa_trait ~ normal(0, 0.5);
 
   array[N_animals] int animal_indices;
   for (i in 1:N_animals) animal_indices[i] = i;

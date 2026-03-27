@@ -151,7 +151,7 @@ p1
 
 # 1. LOAD MODEL & DATA ---------------------------------------------------------
 message("Loading posterior samples...")
-fit <- readRDS("../results/fit_optimal_final_v8.rds")
+fit <- readRDS("../results/fit_optimal_final_v7.rds")
 
 # 2. HMC HEALTH DIAGNOSTICS ----------------------------------------------------
 message("\n--- HMC Diagnostics ---")
