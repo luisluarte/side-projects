@@ -457,6 +457,7 @@ model {
   // information
   // these are reasonable starting points, deviation cant be to big
   // otherwise softmax can easily break
+  array[N_cognitive_contexts] real expected_u = {0.001, 0.346, 0.627};
   base_beta       ~ normal(0, 1.5);
   base_phi        ~ normal(0, 1.5);
   base_side       ~ normal(0, 1.5);
@@ -474,16 +475,26 @@ model {
   // to make a pull of +1.0 (like phi could as its additive)
   // kappa would need to be 4
   veh_shift_beta       ~ normal(0, 1.0);
-  veh_shift_kappa      ~ normal(0, 1.5);
+  // veh_shift_kappa      ~ normal(0, 1.5);
   veh_shift_phi        ~ normal(0, 1.0);
   veh_shift_side       ~ normal(0, 1.0);
   veh_shift_beta_slope ~ normal(0, 1.0);
 
   drug_delta_beta       ~ normal(0, 1.0);
-  drug_delta_kappa      ~ normal(0, 1.5);
+  // drug_delta_kappa      ~ normal(0, 1.5);
   drug_delta_phi        ~ normal(0, 1.0);
   drug_delta_side       ~ normal(0, 1.0);
   drug_delta_beta_slope ~ normal(0, 1.0);
+
+ // kappa is estimated in proportion of the average entropy
+ // of the context, the intuition is straightforward in a 100/100
+ // there's 0 entropy thus kappa can't be logically relevant
+ // so its dragged towards 0, in the 100/50 it can exists
+ // but logically 0.5/0.25 > 100/50 if kappa matters at all
+  for (c in 1:N_cognitive_contexts){
+      veh_shift_kappa[c] ~ normal(0, 2.5 * expected_u[c]);
+      drug_delta_kappa[c] ~ normal(0, 2.5 * expected_u[c]);
+  }
 
   // trait priors are just 0, 1 because of non-centered parametrization
   // nothing special needs to be done here
