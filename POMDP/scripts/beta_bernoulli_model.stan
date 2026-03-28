@@ -84,8 +84,6 @@ functions {
         int cog_ctx = session_cognitive_context[s];
         // which drug was used 1: nothing, 2: vehicle, 3: tcs
         int d_idx = session_drug[s];
-        // the pure randomness parameter is evaluated per session
-        //real current_epsilon = epsilon[d_idx, cog_ctx];
 
         int last_lick_spout = 0;
         real current_wait_time = 0;
@@ -96,7 +94,7 @@ functions {
         // with both parameter at 1, we get a uniform distribution
         // that represent no knowledge, then we can represent the
         // change in expectation by changing these params super nice
-        // and fast.
+        // and fast. (alpha = reward, beta = no-reward)
         real alpha1 = 1.0;
         real beta1 = 1.0;
         real alpha2 = 1.0;
@@ -144,7 +142,8 @@ functions {
           // I left this here because instead of epsilon
           // I could've set a lower boundary for uncertainty
           // the 'irreducible' uncertainty. However, I decided for
-          // the epsilon parameter instead, as (1) is explicitly estimated,
+          // the epsilon parameter (true random behavior) instead,
+          // as (1) is explicitly estimated,
           // (2) easier to interpret, and nicer for the optimizer
           real u1 = raw_u1;
           real u2 = raw_u2;
@@ -162,11 +161,11 @@ functions {
           // actions, but nosepoke related one are disregarded as they are colineal
           // with spout related actions (animal are super trained)
           vector[N_actions] Q_base = rep_vector(0.0, N_actions);
-          // here I used 5.0 to scale the reward, this is just for the model
-          // to properly identify smaller differences in EV for both spout
-          // given all the the other Q values, also here I added the side
+          // here I added the side
           // bias, as its included only in one spout, a positive value
           // means left side pref, a negative right side pref
+          // ev is just the expected value of the spout derived
+          // from the beta dist
           Q_base[ID_LICK1] = (ev1 * 1.0) + side_s;
           Q_base[ID_LICK2] = (ev2 * 1.0);
 
@@ -217,14 +216,15 @@ functions {
                       // and return the likelihood of this particular action
                       // considering all the rest, this is almost the same
                       // as the rescorla wagner, but I removed the tau parameter
-                      // as its now explictly modeled, and leads to issues of
+                      // as its now explictly modeled (unc derived from beta dist)
+                      // , and leads to issues of
                       // model non-identifiable parameters
                       real log_softmax = categorical_logit_lpmf(act | Q_step);
                       lp += log_mix(epsilon, log_random_prob, log_softmax);
                       // this part is to fix super weird results when both spouts are 100%
                       // when the animal does something we ask is it just random behavior
                       // or is some sort of calculation, log_mix takes both of those
-                      // paths, current_epsilon is a mixing proportion here between 0 and 1
+                      // paths, epsilon is a mixing proportion here between 0 and 1
                       // log_random_prob represent the randomness over all actions,
                       // log_softmax is the softmax output, so now P(action) is
                       // epsilon * P(random) + (1 - epsilon) * P(softmax output)
@@ -233,8 +233,6 @@ functions {
                       // independent of everything, this allows the model to consider
                       // spout switching in the 100/100 context as epsilon related rather
                       // than a stupid high kappa value
-                      //lp += log_mix(current_epsilon, log_random_prob, log_softmax);\
-                      //lp += categorical_logit_lpmf(act | Q_step);
                       // we move a step and re-do
                       current_wait_time += dt;
                   }

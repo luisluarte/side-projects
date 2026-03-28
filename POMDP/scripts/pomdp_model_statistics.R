@@ -326,6 +326,7 @@ posterior_medians <- mu_draws %>%
         .groups = "drop"
     )
 posterior_medians
+write_rds(x = posterior_medians, file = "../proc_datasets/random_effects.rds")
 
 # one step posterior predictive check ----
 run_onestep_ppc <- function(stan_data, posterior_medians) {
@@ -572,6 +573,7 @@ switch_p <- ev_behavior %>%
         step_norm = scales::rescale(step, to = c(0, 1))
     )
 switch_p
+write_rds(x = switch_p, file = "../proc_datasets/switch_data.rds")
 
 ### switch stats ----
 # check the number of total switches
