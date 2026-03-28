@@ -1,9 +1,3 @@
-# ==============================================================================
-# HIERARCHICAL POMDP ANALYSIS: ROBUST ZEN 5 OPTIMIZATION
-# ==============================================================================
-# 1. Threading: 3 Chains x 2 Threads (Physical Core Saturation)
-# 2. Safety: PRIMITIVE ARRAYS + NO HEAP ALLOCS inside loop.
-# ==============================================================================
 message("starting fit...")
 
 pacman::p_load(
@@ -12,10 +6,9 @@ pacman::p_load(
 
 setwd(this.path::here())
 
-# 1. DATA PREPARATION & DISCRETIZATION ----
 d <- readRDS("../data/processed/discrete_data.rds")
 
-# Map actions and states to numeric IDs
+# map actions and states to numeric ids
 coded_d <- d %>%
     mutate(
         A = case_when(
@@ -24,14 +17,10 @@ coded_d <- d %>%
         ),
         S = case_when(
             S == "S_I" ~ 1, S == "S_P1" ~ 2, S == "S_P2" ~ 3, S == "S_Armed" ~ 4,
-
-            # UNROLL THE SPOUT 1 CHAIN (Matches sid = 4 + k)
             S == "S_1_0" ~ 5,
             S == "S_2_0" ~ 6,
             S == "S_3_0" ~ 7,
             S == "S_4_0" ~ 8,
-
-            # UNROLL THE SPOUT 2 CHAIN (Matches sid = 8 + k)
             S == "S_0_1" ~ 9,
             S == "S_0_2" ~ 10,
             S == "S_0_3" ~ 11,
@@ -60,9 +49,9 @@ coded_d <- coded_d %>%
     ungroup() %>%
     select(-is_baseline, -baseline_rank, -max_baseline)
 
-# 2. SUBJECT-SPECIFIC PHYSICS CALIBRATION ----
-message("Calibrating individual motor physics...")
+message("calibrating individual motor physics...")
 
+# mainly to determine sensible values
 animal_physics <- coded_d %>%
     filter(true_context == "C_T") %>%
     group_by(ID) %>%
@@ -76,7 +65,7 @@ animal_physics <- coded_d %>%
         poke_cost_steps = 2
     )
 
-# 4. DATA MAPPING & SESSION INDEXING ----
+# data mapping
 animal_map <- tibble(ID = animal_physics$ID) %>% mutate(animal_idx = row_number())
 
 sessions_df <- coded_d %>%
@@ -119,10 +108,10 @@ drug_map <- tibble(
     drug_id = 1:3
 )
 
+# wait step compression
 compressed_steps <- coded_d %>%
     left_join(animal_map, by = "ID") %>%
     mutate(
-        # 1. Identify the standard consecutive blocks
         base_run_id = data.table::rleid(animal_idx, n_sesion, S, A)
     ) %>%
     group_by(base_run_id) %>%
@@ -135,12 +124,12 @@ compressed_steps <- coded_d %>%
         weight = n(),
         .groups = "drop"
     ) %>%
-    # mutate(weight = if_else(weight > 400, 400, weight)) %>%
     arrange(base_run_id)
 
+# this is just to pass data in stan format
 session_pointers <- compressed_steps %>%
     ungroup() %>%
-    mutate(global_idx = row_number()) %>% # Assigns 1 to 90303
+    mutate(global_idx = row_number()) %>%
     group_by(animal_idx, n_sesion) %>%
     summarise(
         start_idx = min(global_idx),
@@ -150,7 +139,7 @@ session_pointers <- compressed_steps %>%
 
 animal_pointers <- session_pointers %>%
     ungroup() %>%
-    mutate(global_session_idx = row_number()) %>% # Assigns 1 to 184
+    mutate(global_session_idx = row_number()) %>%
     group_by(animal_idx) %>%
     summarise(
         s_start = min(global_session_idx),
@@ -158,7 +147,7 @@ animal_pointers <- session_pointers %>%
         .groups = "drop"
     )
 
-# 5. EXECUTION (SAFE MODE) ----
+# build stan data
 
 stan_data <- list(
     N_animals = nrow(animal_map),
@@ -186,9 +175,6 @@ stan_data <- list(
 write_rds(stan_data, "../data/processed/stan_behavior_data.rds")
 
 message("loading model...")
-# SAFETY UPDATE: Removed -march=native
-# Arch Linux + Zen 5 + AVX512 + reduce_sum is creating alignment crashes.
-# -O3 is stable and fast enough.
 mod <- cmdstan_model(
     "beta_bernoulli_model.stan",
     force_recompile = TRUE,
@@ -198,6 +184,7 @@ mod <- cmdstan_model(
 )
 
 
+# just to get fast param estimates
 message("launching pathfinder")
 fit_pf <- mod$pathfinder(
     data = stan_data,
@@ -216,7 +203,7 @@ print(fit_pf$summary("mu_side"))
 print("---------------------")
 print(fit_pf$summary(variable = "epsilon"))
 
-# Threading: 3 Chains x 2 Threads
+# main fit
 message("--------- starting MCMC -----------")
 fit <- mod$sample(
     data = stan_data,
