@@ -176,7 +176,7 @@ write_rds(stan_data, "../data/processed/stan_behavior_data.rds")
 
 message("loading model...")
 mod <- cmdstan_model(
-    "beta_bernoulli_model.stan",
+    "beta_bernoulli_model_prior_checked.stan",
     force_recompile = TRUE,
     cpp_options = list(
         stan_threads = TRUE
@@ -219,4 +219,4 @@ fit <- mod$sample(
 )
 message("MCMC fit done!")
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/beta_bernoulli_model.rds")
+fit$save_object("../results/beta_bernoulli_model_prior_checked.rds")

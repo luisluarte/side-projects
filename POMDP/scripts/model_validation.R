@@ -21,6 +21,48 @@ pacman::p_load(
 # set source as path ----
 setwd(this.path::here())
 
+raw_data <- read_rds("../data/lickometer_data.rds")
+
+behavior <- raw_data %>%
+    ungroup() %>%
+    # this is the baseline
+    filter(droga != "na_na_na_na") %>%
+    # context recoding
+    mutate(
+        context = case_when(
+            true_context %in% c("C_T") ~ "low",
+            true_context %in% c("C_S2a", "C_S2b") ~ "mid",
+            true_context %in% c("C_S3a", "C_S3b") ~ "high"
+        ),
+        action = case_when(
+            # for now sensor 0 is set arbitrarily as the high_ev spout
+            context == "low" & sensor == 0 ~ "high_ev",
+            context == "mid" & tipo_recompensa == "cond100prob" ~ "high_ev",
+            context == "high" & tipo_recompensa == "cond50prob" ~ "high_ev",
+            TRUE ~ "low_ev"
+        ),
+        switch = if_else(sensor != lag(sensor, n = 1), 1, 0)
+    ) %>%
+    ungroup() %>%
+    mutate(
+        droga = factor(as.factor(droga), levels = c(
+            "veh_na_na_na", "tcs_na_na_na"
+        )),
+        context = factor(as.factor(context),
+            levels = c("low", "mid", "high")
+        )
+    ) %>%
+    ungroup()
+behavior
+
+mean_lick <- behavior %>%
+    group_by(ID, context) %>%
+    summarise(
+        mean_licks = mean(n())
+    )
+mean_lick
+
+
 # load data ----
 switch_data <- read_rds("../proc_datasets/switch_data.rds")
 posteriors <- read_rds("../proc_datasets/random_effects.rds") %>%
@@ -118,3 +160,94 @@ mdl_cor %>%
     scale_x_continuous(breaks = seq(0, 0.25, 0.05), limits = c(0, 0.25)) +
     scale_y_continuous(breaks = seq(0, 0.25, 0.05), limits = c(0, 0.25)) +
     coord_fixed(ratio = 1)
+
+# prior predictive checks ----
+
+prior_sim_func <- function(behavior_dat, n_sims, context) {
+    behavior_dat_sel <- behavior_dat %>%
+        filter(context == context) %>%
+        group_by(ID, context) %>%
+        summarise(
+            mean_licks = mean(n())
+        )
+    mod_sim <- cmdstan_model("prior_simulator.stan")
+    if (context == "low") {
+        p_reward_1 <- 1.0
+        p_reward_2 <- 1.0
+    } else if (context == "mid") {
+        p_reward_1 <- 1.0
+        p_reward_2 <- 0.5
+    } else {
+        p_reward_1 <- 0.5
+        p_reward_2 <- 0.25
+    }
+    sim_data <- list(
+        N_steps = 144000,
+        p_reward_1 = p_reward_1,
+        p_reward_2 = p_reward_2
+    )
+    fit_sim <- mod_sim$sample(
+        data = sim_data,
+        fixed_param = TRUE,
+        iter_sampling = n_sims,
+        chains = 1,
+        seed = 42
+    )
+    prior_animals <- fit_sim$draws(format = "df") %>%
+        as_tibble() %>%
+        mutate(
+            total_licks = total_licks_1 + total_licks_2
+        )
+    real_mean <- mean(behavior_dat_sel %>% pull(mean_licks))
+    sim_mean <- mean(prior_animals$total_licks)
+    p_B <- mean(prior_animals$total_licks >= real_mean)
+    return(
+        list(
+            sim_data = prior_animals,
+            real_data = behavior_dat_sel,
+            real_mean = real_mean,
+            sim_mean = sim_mean,
+            p_B <- p_B,
+            context = context
+        )
+    )
+}
+
+sim_data <- c("low", "mid", "high") %>%
+    map(., function(context) {
+        prior_sim_func(
+            behavior_dat = behavior,
+            n_sims = 1000,
+            context = context
+        )
+    })
+
+
+prior_check_plots <- sim_data %>%
+    map(., function(sim_data) {
+        sim_data$sim_data %>%
+            ggplot(aes(
+                total_licks
+            )) +
+            geom_density(aes(
+                fill = after_stat(x) >= sim_data$real_mean
+            ), alpha = 0.5) +
+            geom_vline(
+                xintercept = sim_data$real_mean,
+                linetype = "dashed"
+            ) +
+            scale_fill_manual(
+                values = c("FALSE" = "gray70", "TRUE" = "#d62728"),
+                labels = c(
+                    "FALSE" = "simulated < real",
+                    "TRUE" = "simulated >= real"
+                )
+            ) +
+            ggtitle(sim_data$context)
+    })
+
+wrap_plots(
+    prior_check_plots,
+    ncol = 3,
+    nrow = 1
+)
