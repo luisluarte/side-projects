@@ -15,7 +15,8 @@ pacman::p_load(
     glmmTMB,
     robustlmm,
     performance,
-    ggdist
+    ggdist,
+    ggokabeito
 )
 
 # set source as path ----
@@ -63,7 +64,7 @@ mean_lick <- behavior %>%
 mean_lick
 
 
-# load data ----
+# frequentist stats ----
 switch_data <- read_rds("../proc_datasets/switch_data.rds")
 posteriors <- read_rds("../proc_datasets/random_effects.rds") %>%
     mutate(
@@ -213,17 +214,20 @@ prior_sim_func <- function(behavior_dat, n_sims, context) {
     )
 }
 
-sim_data <- c("low", "mid", "high") %>%
-    map(., function(context) {
-        prior_sim_func(
-            behavior_dat = behavior,
-            n_sims = 1000,
-            context = context
-        )
-    })
+if (file.exists("../results/prior_sim_data.rds")) {
+    sim_data <- read_rds(file = "../results/prior_sim_data.rds")
+} else {
+    sim_data <- c("low", "mid", "high") %>%
+        map(., function(context) {
+            prior_sim_func(
+                behavior_dat = behavior,
+                n_sims = 1000,
+                context = context
+            )
+        })
+}
 
-
-prior_check_plots <- sim_data %>%
+prior_check_plots_0 <- sim_data %>%
     map(., function(sim_data) {
         sim_data$sim_data %>%
             ggplot(aes(
@@ -237,17 +241,71 @@ prior_check_plots <- sim_data %>%
                 linetype = "dashed"
             ) +
             scale_fill_manual(
-                values = c("FALSE" = "gray70", "TRUE" = "#d62728"),
+                values = c(
+                    "FALSE" = "gray70",
+                    "TRUE" = palette_okabe_ito(3)
+                ),
                 labels = c(
                     "FALSE" = "simulated < real",
                     "TRUE" = "simulated >= real"
-                )
+                ),
+                guide = guide_legend(nrow = 2),
+                name = ""
             ) +
-            ggtitle(sim_data$context)
+            ggtitle(sim_data$context) +
+            ggpubr::theme_pubr() +
+            coord_cartesian(xlim = c(0, 20000))
     })
 
-wrap_plots(
-    prior_check_plots,
-    ncol = 3,
-    nrow = 1
+prior_check_plots_1 <- sim_data %>%
+    map(., function(sim_data) {
+        sim_data$sim_data %>%
+            ggplot(aes(
+                total_licks
+            )) +
+            geom_density(
+                alpha = 0.5,
+                aes(fill = "sim_data")
+            ) +
+            geom_density(
+                data = sim_data$real_data,
+                aes(
+                    mean_licks,
+                    fill = "obs_data"
+                ),
+                alpha = 0.5
+            ) +
+            scale_fill_manual(
+                values = c(
+                    "obs_data" = palette_okabe_ito(1),
+                    "sim_data" = palette_okabe_ito(2)
+                ),
+                labels = c(
+                    "obs_data" = "Observed data",
+                    "sim_data" = "Simulated data"
+                ),
+                guide = guide_legend(nrow = 2),
+                name = ""
+            ) +
+            ggtitle(sim_data$context) +
+            ggpubr::theme_pubr() +
+            coord_cartesian(xlim = c(0, 20000))
+    })
+
+p1 <- wrap_plots(
+    prior_check_plots_0,
+    ncol = 1,
+    nrow = 3,
+    guides = "collect"
 )
+
+p2 <- wrap_plots(
+    prior_check_plots_1,
+    ncol = 1,
+    nrow = 3,
+    guides = "collect"
+)
+
+wrap_plots(p1, p2)
+
+# parameter recovery ----
