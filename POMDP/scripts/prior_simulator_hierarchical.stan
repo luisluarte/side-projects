@@ -2,17 +2,17 @@ data {
   int<lower=1> N_steps;
   real<lower=0, upper=1> p_reward_1;
   real<lower=0, upper=1> p_reward_2;
+  
+  // set the priors
+  real prior_beta;
+  real prior_beta_slope;
+  real prior_kappa;
+  real prior_phi;
+  real prior_side;
+  real epsilon;
 }
 
 generated quantities {
-  // draw params from the priors
-  real prior_beta = normal_rng(10, 1.5);
-  real prior_beta_slope = normal_rng(0, 1.5);
-  real prior_kappa = abs(normal_rng(0, 1.5));
-  real prior_phi = normal_rng(0, 1.5);
-  real prior_side = normal_rng(0, 1.5);
-  real epsilon = beta_rng(1, 10);
-  
   // data to save
   array[N_steps] int<lower=1, upper=6> action_history;
   array[N_steps] int<lower=1, upper=6> state_history;
