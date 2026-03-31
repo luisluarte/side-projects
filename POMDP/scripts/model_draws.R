@@ -23,7 +23,7 @@ pacman::p_load(
 setwd(this.path::here())
 
 # load fit ----
-fit <- read_rds("../results/beta_bernoulli_model.rds")
+fit <- read_rds("../results/beta_bernoulli_model_prior_checked.rds")
 
 # main effects draws ----
 main_effects_draws <- fit %>%
