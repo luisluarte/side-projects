@@ -66,104 +66,6 @@ mean_lick <- behavior %>%
 mean_lick
 
 
-# frequentist stats ----
-switch_data <- read_rds("../proc_datasets/switch_data.rds")
-posteriors <- read_rds("../proc_datasets/random_effects.rds") %>%
-    mutate(
-        ID = case_when(
-            ID == 1 ~ 574,
-            ID == 2 ~ 575,
-            ID == 3 ~ 576,
-            ID == 4 ~ 577,
-            ID == 5 ~ 578,
-            ID == 6 ~ 579,
-            ID == 7 ~ 580,
-            ID == 8 ~ 581
-        )
-    ) %>%
-    mutate(ID = as.factor(ID)) %>%
-    mutate(
-        context = case_when(
-            context == 1 ~ "low",
-            context == 2 ~ "mid",
-            context == 3 ~ "high",
-        ),
-        context = factor(context,
-            levels = c("low", "mid", "high")
-        ),
-        droga = case_when(
-            droga == 2 ~ "veh",
-            droga == 3 ~ "tcs",
-            TRUE ~ "baseline"
-        )
-    ) %>%
-    filter(droga != "baseline")
-posteriors
-
-switch_params <- switch_p %>%
-    mutate(
-        droga = as.factor(droga),
-        context = as.factor(context)
-    ) %>%
-    ungroup() %>%
-    group_by(ID, droga, context) %>%
-    summarise(
-        mean_switch = mean(switch_prob)
-    ) %>%
-    left_join(posteriors %>%
-        mutate(ID = as.factor(ID)), by = c("ID", "droga", "context"))
-switch_params
-
-switch_mdl_0 <- glmmTMB(
-    data = switch_params,
-    mean_switch ~ 1 + (1 | ID),
-    family = beta_family(link = "logit")
-)
-summary(switch_mdl_0)
-
-switch_mdl_1 <- glmmTMB(
-    data = switch_params,
-    mean_switch ~ droga * context + (1 | ID),
-    family = beta_family(link = "logit")
-)
-summary(switch_mdl_1)
-
-switch_mdl_2 <- glmmTMB(
-    data = switch_params,
-    mean_switch ~ droga * context + beta + kappa + phi + side + beta_slope + (1 | ID),
-    family = beta_family(link = "logit")
-)
-summary(switch_mdl)
-
-# model params explain our target raw behavioral metric
-test_likelihoodratio(
-    switch_mdl_0,
-    switch_mdl_1,
-    switch_mdl_2
-)
-
-mdl_cor <- switch_params %>%
-    ungroup() %>%
-    mutate(.pred = predict(switch_mdl_2, type = "response"))
-
-mdl_cor %>%
-    ggplot(aes(
-        .pred, mean_switch,
-        color = interaction(droga, context)
-    )) +
-    geom_abline(
-        intercept = 0,
-        slope = 1,
-        color = "black",
-        linetype = "dashed"
-    ) +
-    geom_point() +
-    geom_smooth(method = "lm", se = FALSE) +
-    ggpubr::theme_pubr() +
-    scale_x_continuous(breaks = seq(0, 0.25, 0.05), limits = c(0, 0.25)) +
-    scale_y_continuous(breaks = seq(0, 0.25, 0.05), limits = c(0, 0.25)) +
-    coord_fixed(ratio = 1)
-
 # prior predictive checks ----
 
 prior_sim_func <- function(behavior_dat, n_sims, context) {
@@ -223,7 +125,7 @@ if (file.exists("../results/prior_sim_data.rds")) {
         map(., function(context) {
             prior_sim_func(
                 behavior_dat = behavior,
-                n_sims = 100,
+                n_sims = 1000,
                 context = context
             )
         })
@@ -309,9 +211,11 @@ p2 <- wrap_plots(
 )
 
 wrap_plots(p1, p2)
+message("done with prior predictive check")
 
 # parameter recovery ----
 
+message("loading the stan models")
 sim_model <- cmdstan_model("prior_simulator_hierarchical.stan")
 main_model <- cmdstan_model("beta_bernoulli_model_prior_checked.stan")
 
@@ -339,46 +243,30 @@ format_and_compress_session <- function(sim_data, IDs) {
     next_st[is_lick & rew == 0] <- IDs$ID_NOREWARD_STATE
 
     # compression
-    comp_act <- integer(n)
-    comp_st <- integer(n)
-    comp_nxt <- integer(n)
-    comp_wt <- integer(n)
+    base_grp <- data.table::rleid(act, st)
+    non_waits <- act != IDs$ID_WAIT
+    unique_ids <- seq_len(sum(non_waits)) * 1000000
+    base_grp[non_waits] <- base_grp[non_waits] + unique_ids
 
-    idx <- 1
-    i <- 1
+    dt <- data.table::data.table(
+        act = act,
+        st = st,
+        nxt = next_st,
+        grp = base_grp
+    )
 
-    while (i <= n) {
-        current_act <- act[i]
-        current_st <- st[i]
+    comp <- dt[, .(
+        action = act[1],
+        state = st[1],
+        next_state = nxt[.N],
+        weight = .N
+    ), by = grp]
 
-        # if animal starts waiting start compression
-        if (current_act == IDs$ID_WAIT) {
-            weight <- 1
-            while ((i + weight <= n) &&
-                (act[i + weight] == IDs$ID_WAIT) &&
-                (st[i + weight] == current_st)) {
-                weight <- weight + 1
-            }
-            comp_act[idx] <- current_act
-            comp_st[idx] <- current_st
-            comp_wt[idx] <- weight
-            comp_nxt[idx] <- next_st[i + weight - 1]
-            i <- i + weight
-        } else {
-            comp_act[idx] <- current_act
-            comp_st[idx] <- current_st
-            comp_wt[idx] <- 1
-            comp_nxt[idx] <- next_st[i]
-            i <- i + 1
-        }
-        idx <- idx + 1
-    }
-    idx <- idx - 1
     return(list(
-        action = comp_act[1:idx],
-        state = comp_st[1:idx],
-        next_state = comp_nxt[1:idx],
-        weight = comp_wt[1:idx]
+        action = comp$action,
+        state = comp$state,
+        next_state = comp$next_state,
+        weight = comp$weight
     ))
 }
 
@@ -511,7 +399,7 @@ recovery_generator <- function(n_steps = 144000, n_animals = 8) {
         ID_REWARD_STATE = IDs$ID_REWARD_STATE, ID_NOREWARD_STATE = IDs$ID_NOREWARD_STATE,
         grainsize = ceiling(n_animals / 6)
     )
-    true_params_df <- data.frame(
+    true_params <- list(
         base_beta = global_beta,
         base_beta_slope = global_beta_slope,
         base_side = global_side,
@@ -524,15 +412,67 @@ recovery_generator <- function(n_steps = 144000, n_animals = 8) {
         sigma_phi_trait = sigma_phi_trait
     )
 
-    true_params_matrix <- posterior::as_draws_matrix(true_params_df)
-    return(SBC_datasets(
-        variables = true_params_matrix,
-        generated = list(stan_data)
+    return(list(
+        variables = true_params,
+        generated = stan_data
     ))
 }
 
+message("starting future...")
+future::plan(future::multisession, workers = parallel::detectCores() - 1)
 sbc_generator <- SBC_generator_function(recovery_generator)
-datasets_test <- generate_datasets(
-    sbc_generator,
-    n_sims = 10
+N_DATASETS <- 100
+message("generating datasets")
+if (file.exists("../results/datasets_test.rds")) {
+    datasets_test <- read_rds("../results/datasets_test.rds")
+} else {
+    datasets_list <- furrr::future_map(
+        1:N_DATASETS,
+        function(X) {
+            generate_datasets(
+                sbc_generator,
+                n_sims = 1
+            )
+        },
+        .options = furrr::furrr_options(
+            seed = TRUE,
+            packages = c("cmdstanr", "SBC", "data.table", "posterior", "dplyr"),
+            globals = c("sbc_generator", "format_and_compress_session", "recovery_generator")
+        ),
+        .progress = TRUE
+    )
+    true_params_df <- purrr::map(datasets_list, ~ as.data.frame(.x$variables)) %>%
+        dplyr::bind_rows()
+    stan_data_list <- purrr::map(datasets_list, ~ .x$generated[[1]])
+
+    datasets_test <- SBC_datasets(
+        variables = posterior::as_draws_matrix(true_params_df),
+        generated = stan_data_list
+    )
+}
+message("datasets loaded!")
+
+
+# backend_fast <- SBC_backend_cmdstan_variational(
+#     main_model
+# )
+backend_fast <- SBC_backend_cmdstan_sample(
+    main_model,
+    iter_warmup = 500,
+    iter_sampling = 500,
+    adapt_delta = 0.85,
+    max_treedepth = 10,
+    chains = 1,
+    refresh = 0,
+    show_messages = FALSE
 )
+progressr::handlers(global = TRUE)
+progressr::handlers("cli")
+
+message("starting SBC...")
+results_test <- compute_SBC(datasets_test, backend_fast)
+write_rds(x = results_test, file = "../results/SBC_results_MCMC.rds")
+
+plot_rank_hist(results_test)
+
+future::plan(future::sequential)

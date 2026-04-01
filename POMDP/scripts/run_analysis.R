@@ -176,7 +176,7 @@ write_rds(stan_data, "../data/processed/stan_behavior_data.rds")
 
 message("loading model...")
 mod <- cmdstan_model(
-    "beta_bernoulli_model_prior_checked.stan",
+    "beta_bernoulli_model_prior_checked_v2.stan",
     force_recompile = TRUE,
     cpp_options = list(
         stan_threads = TRUE
@@ -194,7 +194,7 @@ fit_pf <- mod$pathfinder(
 )
 
 dir.create("../results", showWarnings = FALSE)
-fit_pf$save_object("../results/pathfinder_model.rds")
+fit_pf$save_object("../results/pathfinder_model_side_fix.rds")
 print(fit_pf$summary("mu_kappa"))
 print("---------------------")
 print(fit_pf$summary("mu_phi"))
@@ -219,4 +219,4 @@ fit <- mod$sample(
 )
 message("MCMC fit done!")
 dir.create("../results", showWarnings = FALSE)
-fit$save_object("../results/beta_bernoulli_model_prior_checked.rds")
+fit$save_object("../results/beta_bernoulli_model_prior_checked_side_fix.rds")

@@ -56,7 +56,6 @@ bout_data <- raw_data %>%
 bout_data
 
 
-
 ## stats ----
 bout_mdl <- lmer(
     data = bout_data,
@@ -151,7 +150,7 @@ p1
 
 # 1. LOAD MODEL & DATA ---------------------------------------------------------
 message("Loading posterior samples...")
-fit <- readRDS("../results/fit_optimal_final_v7.rds")
+fit <- readRDS("../results/beta_bernoulli_model_prior_checked.rds")
 
 # 2. HMC HEALTH DIAGNOSTICS ----------------------------------------------------
 message("\n--- HMC Diagnostics ---")
@@ -167,6 +166,7 @@ if (nrow(bad_rhat) > 0) {
 } else {
     message("All R-hat values look excellent (< 1.05).")
 }
+
 
 # detect the troublesome ones ----
 fit_summary %>%
@@ -242,6 +242,12 @@ delta_params <- c(
     "drug_delta_beta", "drug_delta_kappa", "drug_delta_phi",
     "drug_delta_side", "drug_delta_beta_slope"
 )
+
+draws <- fit$draws(
+    variables = delta_params
+)
+
+bayesplot::mcmc_trace(draws)
 
 # Extract draws
 draws_df <- as_draws_df(fit$draws(variables = delta_params))
