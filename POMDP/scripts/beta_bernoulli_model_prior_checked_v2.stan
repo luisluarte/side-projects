@@ -534,7 +534,7 @@ model {
   sigma_beta_slope_trait ~ normal(0, 0.5);
   sigma_kappa_trait ~ normal(0, 0.5);
   // added
-  sigma_side_trait ~ normal(0, 0.5)
+  sigma_side_trait ~ normal(0, 0.5);
 
   array[N_animals] int animal_indices;
   for (i in 1:N_animals) animal_indices[i] = i;

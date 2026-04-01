@@ -209,7 +209,7 @@ fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = 4,
-    threads_per_chain = 2,
+    threads_per_chain = 1,
     iter_warmup = 1000,
     iter_sampling = 1000,
     max_treedepth = 12,
