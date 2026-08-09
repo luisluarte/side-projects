@@ -8,10 +8,47 @@ pacman::p_load(
   org.Hs.eg.db,
   tidyverse,
   BiocParallel,
-  furrr
+  furrr,
+  fgsea,
+  GO.db,
+  AnnotationDbi
 )
 
 setwd(this.path::here())
+
+# helper functions ---------------------------------------------------------
+
+map_go_to_term <- function(go_ids) {
+
+  if (!is.character(go_ids)) {
+    stop("Input must be a character vector of GO IDs.")
+  }
+
+  clean_ids <- unique(na.omit(go_ids))
+
+  if (length(clean_ids) == 0) {
+    warning("No valid GO IDs provided.")
+    return(tibble(Pathway_ID = character(), Pathway_Name = character(), Ontology = character()))
+  }
+
+  term_mapping <- suppressMessages(
+    AnnotationDbi::select(
+      x       = GO.db,
+      keys    = clean_ids,
+      columns = c("TERM", "ONTOLOGY"),
+      keytype = "GOID"
+    )
+  ) %>%
+    as_tibble() %>%
+    rename(
+      Pathway_ID   = GOID,
+      Pathway_Name = TERM,
+      Ontology     = ONTOLOGY
+    ) %>%
+    filter(!is.na(Pathway_Name))
+
+  return(term_mapping)
+}
 
 # pathway enrichment ------------------------------------------------------
 
@@ -126,9 +163,10 @@ enrichment_outputs <- run_pathway_pipeline(
 # \mathbb{I}(\cdot) is the indicator function, 1 if p \in \mathcal{LE}_b(S) and 0 otherwise
 # B is the total number of resampled bootstrap runs (~1000)
 
-compute_lesi_noise_injection <- function(
+compute_lesi_bulk_optimized <- function(
   de_results,
-  pathway_id,
+  gsea_result_obj,
+  pathway_ids = NULL,
   B = 100,
   eta = 1.0,
   organism_db = org.Hs.eg.db
@@ -139,16 +177,16 @@ compute_lesi_noise_injection <- function(
   required_cols <- c("ID", "logFC", "P.Value")
   stopifnot(all(required_cols %in% colnames(de_df)))
 
-  # infer standard errors
-  de_df <- de_df %>%
-    mutate(SE = abs(logFC / t))
-
+  # Infer standard errors and degrees of freedom
+  de_df <- de_df %>% mutate(SE = abs(logFC / t))
   df_degrees <- if ("df" %in% colnames(de_df)) de_df$df[1] else 10
 
-  id_map <- bitr(de_df$ID,
+  # Map IDs
+  id_map <- bitr(
+    de_df$ID,
     fromType = "SYMBOL",
-    toType = "ENTREZID",
-    OrgDb = organism_db
+    toType   = "ENTREZID",
+    OrgDb    = organism_db
   )
 
   annotated_de <- de_df %>%
@@ -156,88 +194,67 @@ compute_lesi_noise_injection <- function(
     filter(!is.na(ENTREZID) & ENTREZID != "") %>%
     distinct(ENTREZID, .keep_all = TRUE)
 
-  # base GSEA
-  base_ranks <- annotated_de %>%
-    mutate(
-      rank_metric = sign(logFC) * -log10(P.Value)
-    ) %>%
-    arrange(desc(rank_metric)) %>%
-    {
-      setNames(.$rank_metric, .$ENTREZID)
-    }
+  # Extract pre-built gene sets directly from the baseline gseaResult object
+  all_gene_sets <- gsea_result_obj@geneSets
 
-  base_gsea <- suppressWarnings(
-    gseGO(
-      geneList = base_ranks,
-      OrgDb = organism_db,
-      ont = "BP",
-      eps = 0,
-      verbose = TRUE
-    )
-  )
+  if (is.null(pathway_ids)) {
+    pathway_ids <- gsea_result_obj$ID
+  }
 
-  base_df <- as.data.frame(base_gsea)
-  target_row <- base_df %>%
-    filter(
-      ID == pathway_id | Description == pathway_id
-    ) %>%
-    slice(1)
+  target_gene_sets <- all_gene_sets[intersect(pathway_ids, names(all_gene_sets))]
 
-  if (nrow(target_row) == 0) stop("target pathway not found in GSEA outputs")
+  cat(sprintf("Executing %d bootstrap runs across %d target pathways...\n", B, length(target_gene_sets)))
 
-  target_go_id <- target_row$ID
-  pathway_genes <- unlist(strsplit(target_row$core_enrichment, "/"))
-
-  le_accumulator <- vector("list", B)
-
-  for (b in seq_len(B)) {
-    prg <- length(B) / b
-    print(paste("bootstrap progress:", prg))
+  # Parallelize across bootstrap noise iterations B
+  boot_runs <- future_map(seq_len(B), function(b) {
     noise <- rnorm(
-      n = nrow(annotated_de),
+      n    = nrow(annotated_de),
       mean = 0,
-      sd = sqrt(eta) * annotated_de$SE
+      sd   = sqrt(eta) * annotated_de$SE
     )
 
     noisy_de <- annotated_de %>%
       mutate(
         logFC_noisy = logFC + noise,
-        t_noisy = logFC_noisy / SE,
-        P_noisy = 2 * (1 - pt(abs(t_noisy), df = df_degrees)),
-        P_noise = pmax(P_noisy, 1e-15),
+        t_noisy     = logFC_noisy / SE,
+        P_noisy     = 2 * (1 - pt(abs(t_noisy), df = df_degrees)),
+        P_noisy     = pmax(P_noisy, 1e-15),
         rank_metric = sign(logFC_noisy) * -log10(P_noisy)
       )
 
     noisy_ranks <- noisy_de %>%
       arrange(desc(rank_metric)) %>%
-      { setNames(.$rank_metric, .$ENTREZID) }
+      {
+        setNames(.$rank_metric, .$ENTREZID)
+      }
 
-    noisy_gsea <- suppressWarnings(
-      gseGO(
-        geneList = noisy_ranks,
-        OrgDb = organism_db,
-        ont = "BP",
-        eps = 0,
-        verbose = FALSE
-      )
+    # Fast C++ GSEA on ALL pathways simultaneously
+    fgsea_res <- fgsea::fgsea(
+      pathways = target_gene_sets,
+      stats    = noisy_ranks,
+      minSize  = 1,
+      maxSize  = Inf,
+      eps      = 0
     )
 
-    noisy_df <- as.data.frame(noisy_gsea)
-    hit_row <- noisy_df %>% filter(ID == target_go_id)
+    fgsea_res %>%
+      as_tibble() %>%
+      select(pathway, leadingEdge)
+  }, .options = furrr_options(seed = TRUE), .progress = TRUE)
 
-    if (nrow(hit_row) > 0) {
-      le_accumulator[[b]] <- unlist(strsplit(hit_row$core_enrichment, "/"))
-    }
-  }
+  # Unnest and aggregate leading-edge frequencies
+  boot_df <- bind_rows(boot_runs) %>%
+    filter(lengths(leadingEdge) > 0) %>%
+    unnest(leadingEdge) %>%
+    rename(ENTREZID = leadingEdge)
 
-  all_le_genes <- unlist(le_accumulator)
-
-  lesi_summary <- tibble(ENTREZID = all_le_genes) %>%
-    group_by(ENTREZID) %>%
+  # Compute S_lesi metrics for each pathway
+  lesi_summaries <- boot_df %>%
+    group_by(pathway, ENTREZID) %>%
     summarise(
       core_hits = n(),
-      S_lesi = core_hits / B,
-      .groups = "drop"
+      S_lesi    = core_hits / B,
+      .groups   = "drop"
     ) %>%
     inner_join(id_map, by = "ENTREZID") %>%
     inner_join(annotated_de %>% select(ENTREZID, logFC, P.Value, SE), by = "ENTREZID") %>%
@@ -248,38 +265,73 @@ compute_lesi_noise_injection <- function(
         TRUE ~ "border_rider"
       )
     ) %>%
-    select(SYMBOL, ENTREZID, S_lesi, stability_tier, logFC, SE, P.Value) %>%
-    arrange(desc(S_lesi), P.Value)
+    select(pathway, SYMBOL, ENTREZID, S_lesi, stability_tier, logFC, SE, P.Value) %>%
+    arrange(pathway, desc(S_lesi), P.Value) %>%
+    group_split(pathway)
 
-  return(lesi_summary)
+  names(lesi_summaries) <- map_chr(lesi_summaries, ~ .x$pathway[1])
+  return(lesi_summaries)
 }
 
-pathway_list <- enrichment_outputs$GSEA_GO$ID
 
-plan(multisession, workers = 2)
-lesi_results <- pathway_list %>%
-  future_map(., function(pathway) {
-    compute_lesi_noise_injection(
-      de_results = stat_results,
-      pathway_id = pathway,
-      B = 100,
-      eta = 1.0
-    )
-  }, .options = furrr_options(seed = TRUE), .progress = TRUE)
+plan(multisession, workers = availableCores() - 1)
+lesi_results <- compute_lesi_bulk_optimized(
+  de_results = stat_results,
+  gsea_result_obj = enrichment_outputs$GSEA_GO,
+  pathway_ids = enrichment_outputs$GSEA_GO$ID,
+  B = 100,
+  eta = 1.0
+)
 plan(sequential)
 write_rds(x = lesi_results, file = "../data/lesi_results.rds")
 
 
+target_pathways <- unique(lesi_df$pathway)
+
+pathway_dictionary <- map_go_to_term(target_pathways)
+
+lesi_df <- lesi_results %>%
+  map_dfr(., function(D) {
+    as_tibble(D)
+  }) %>%
+  left_join(pathway_dictionary, by = c("pathway" = "Pathway_ID")) %>%
+  relocate(pathway, Pathway_Name, SYMBOL, S_lesi, stability_tier)
+write_rds(x = lesi_df, file = "../data/lesi_df.rds")
+
+
 # figures -----------------------------------------------------------------
 
-p1 <- dotplot(enrichment_outputs$GSEA_GO, split = ".sign") +
-  ggpubr::theme_pubr() +
-  theme(
-    legend.position = "right",
-    axis.text.y = element_text(size = 8)
-  ) +
-  facet_wrap(~.sign)
-p1
+p1 <- lesi_df %>%
+  group_by(pathway) %>%
+  group_split() %>%
+  {.[1:4]} %>%
+  map(
+    ., function(P) {
+      pwn <- unique(P$Pathway_Name)
+      P %>%
+        ggplot(aes(
+          SYMBOL, logFC
+        )) +
+        geom_errorbar(aes(
+          ymin = logFC - SE,
+          ymax = logFC + SE
+        ), width = 0.2) +
+        geom_col(aes(fill = S_lesi), color = "black") +
+        geom_hline(yintercept = 0) +
+        geom_hline(yintercept = 1.0, linetype = "dashed") +
+        geom_hline(yintercept = -1.0, linetype = "dashed") +
+        ggpubr::theme_pubr() +
+        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+              legend.position = "right",
+              plot.title = element_text(size = 24)) +
+        labs(title = pwn) +
+        scale_fill_viridis_c(option = "plasma")
+    }
+  )
+p1[[1]]
+p1[[2]]
+p1[[3]]
+p1[[4]]
 
 ## volcano plot
 p3 <- EnhancedVolcano(
