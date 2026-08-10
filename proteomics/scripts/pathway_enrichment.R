@@ -19,7 +19,6 @@ setwd(this.path::here())
 # helper functions ---------------------------------------------------------
 
 map_go_to_term <- function(go_ids) {
-
   if (!is.character(go_ids)) {
     stop("Input must be a character vector of GO IDs.")
   }
@@ -279,81 +278,23 @@ lesi_results <- compute_lesi_bulk_optimized(
   de_results = stat_results,
   gsea_result_obj = enrichment_outputs$GSEA_GO,
   pathway_ids = enrichment_outputs$GSEA_GO$ID,
-  B = 100,
+  B = 1000,
   eta = 1.0
 )
 plan(sequential)
 write_rds(x = lesi_results, file = "../data/lesi_results.rds")
 
 
-target_pathways <- unique(lesi_df$pathway)
-
-pathway_dictionary <- map_go_to_term(target_pathways)
-
-lesi_df <- lesi_results %>%
+lesi_comp <- lesi_results %>%
   map_dfr(., function(D) {
     as_tibble(D)
-  }) %>%
+  })
+target_pathways <- unique(lesi_comp$pathway)
+pathway_dictionary <- map_go_to_term(target_pathways)
+
+lesi_df <- lesi_comp %>%
   left_join(pathway_dictionary, by = c("pathway" = "Pathway_ID")) %>%
   relocate(pathway, Pathway_Name, SYMBOL, S_lesi, stability_tier)
 write_rds(x = lesi_df, file = "../data/lesi_df.rds")
 
 
-# figures -----------------------------------------------------------------
-
-p1 <- lesi_df %>%
-  group_by(pathway) %>%
-  group_split() %>%
-  {.[1:4]} %>%
-  map(
-    ., function(P) {
-      pwn <- unique(P$Pathway_Name)
-      P %>%
-        ggplot(aes(
-          SYMBOL, logFC
-        )) +
-        geom_errorbar(aes(
-          ymin = logFC - SE,
-          ymax = logFC + SE
-        ), width = 0.2) +
-        geom_col(aes(fill = S_lesi), color = "black") +
-        geom_hline(yintercept = 0) +
-        geom_hline(yintercept = 1.0, linetype = "dashed") +
-        geom_hline(yintercept = -1.0, linetype = "dashed") +
-        ggpubr::theme_pubr() +
-        theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
-              legend.position = "right",
-              plot.title = element_text(size = 24)) +
-        labs(title = pwn) +
-        scale_fill_viridis_c(option = "plasma")
-    }
-  )
-p1[[1]]
-p1[[2]]
-p1[[3]]
-p1[[4]]
-
-## volcano plot
-p3 <- EnhancedVolcano(
-  toptable = stat_results,
-  lab = stat_results$ID,
-  x = "logFC",
-  y = "adj.P.Val",
-  pCutoff = 0.05,
-  FCcutoff = 1.0,
-  titleLabSize = 1,
-  labSize = 3,
-  drawConnectors = TRUE,
-  col = c("gray", "gray", "gray", "gray")
-) +
-  scale_y_continuous(
-    breaks = seq(-1, 5, 1),
-    limits = c(-1, 5)
-  ) +
-  scale_x_continuous(
-    breaks = seq(-5, 5, 1),
-    limits = c(-5, 5)
-  ) +
-  ggpubr::theme_pubr() +
-  theme(legend.position = "none")
-p3
