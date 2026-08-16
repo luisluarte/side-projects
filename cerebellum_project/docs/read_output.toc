@@ -1,22 +1,23 @@
-\contentsline {section}{\numberline {1}Repository Architecture \& Version Control Workflow}{2}{section.1}%
-\contentsline {subsection}{\numberline {1.1}1. Folder Ontology}{2}{subsection.1.1}%
-\contentsline {subsection}{\numberline {1.2}2. Git Version Control \& Collaboration Protocols}{2}{subsection.1.2}%
-\contentsline {section}{Part I: Theoretical Monographs \& Comprehensive Paper}{4}{section*.1}%
-\contentsline {subsection}{\numberline {1.3}\ignorespaces Comprehensive Research Paper: Continuous Cortico-Cerebellar Reservoir Dynamics}{4}{subsection.1.3}%
-\contentsline {subsection}{\numberline {1.4}\ignorespaces Theoretical Master Formalization \& Asymptotic Proofs}{11}{subsection.1.4}%
-\contentsline {subsection}{\numberline {1.5}\ignorespaces Theoretical 60-Iteration Autonomous Compilation}{16}{subsection.1.5}%
-\contentsline {section}{Part II: Idiographic Parameter Optimization \& Phenotypes}{18}{section*.2}%
-\contentsline {subsection}{\numberline {1.6}\ignorespaces Phenotypic Landscape \& WSLS Topological Alignment}{18}{subsection.1.6}%
-\contentsline {section}{Part III: Hierarchical State Dynamics \& Surrogate Distillation}{21}{section*.3}%
-\contentsline {subsection}{\numberline {1.7}\ignorespaces Pause-State Encoding \& Observable Logistic Regression}{21}{subsection.1.7}%
-\contentsline {subsection}{\numberline {1.8}\ignorespaces Hierarchical State Dynamics \& Deep-Layer Pause Decoding (GLMM)}{24}{subsection.1.8}%
-\contentsline {subsection}{\numberline {1.9}\ignorespaces Black-Box Surrogate Discovery \& Hierarchical White-Box Distillation}{27}{subsection.1.9}%
-\contentsline {subsection}{\numberline {1.10}\ignorespaces Windowed State Evolution \& Temporal Surrogate Distillation}{31}{subsection.1.10}%
-\contentsline {subsection}{\numberline {1.11}\ignorespaces Pre-Post Topological Dislocation \& State-Gap Analysis}{35}{subsection.1.11}%
-\contentsline {section}{Part IV: Event-Related Topological Dynamics \& Statistical Matrices}{38}{section*.4}%
-\contentsline {subsection}{\numberline {1.12}\ignorespaces Event-Related Topological Analysis (ERTA) \& Peak-Valley Contrast}{38}{subsection.1.12}%
-\contentsline {subsection}{\numberline {1.13}\ignorespaces Time-by-Time Topological Contrast Matrices \& Re-Warming Dynamics}{41}{subsection.1.13}%
-\contentsline {subsection}{\numberline {1.14}\ignorespaces FDR Combinatorial Temporal Topology \& Cluster Mapping}{45}{subsection.1.14}%
-\contentsline {subsection}{\numberline {1.15}\ignorespaces Leave-One-Subject-Out (LOSO) Topological Robustness \& CV-AUC}{48}{subsection.1.15}%
-\contentsline {subsection}{\numberline {1.16}\ignorespaces Bivariate Empirical Null Distributions \& Mahalanobis Topological Shock}{51}{subsection.1.16}%
-\contentsline {subsection}{\numberline {1.17}\ignorespaces Hierarchical Geometric Inference \& LMM Mahalanobis Decoding}{54}{subsection.1.17}%
+\contentsline {section}{\numberline {1}Repository Architecture \& Version Control Workflow}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}1. Folder Ontology}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}2. Git Version Control \& Collaboration Protocols}{3}{subsection.1.2}%
+\contentsline {section}{Part I: Theoretical Monographs \& Comprehensive Paper}{5}{section*.1}%
+\contentsline {subsection}{\numberline {1.3}\ignorespaces Comprehensive Research Paper: Continuous Cortico-Cerebellar Reservoir Dynamics}{5}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}\ignorespaces Theoretical Master Formalization \& Asymptotic Proofs}{12}{subsection.1.4}%
+\contentsline {subsection}{\numberline {1.5}\ignorespaces Theoretical 60-Iteration Autonomous Compilation}{17}{subsection.1.5}%
+\contentsline {section}{Part II: Idiographic Parameter Optimization \& Phenotypes}{19}{section*.2}%
+\contentsline {subsection}{\numberline {1.6}\ignorespaces Phenotypic Landscape \& WSLS Topological Alignment}{19}{subsection.1.6}%
+\contentsline {section}{Part III: Hierarchical State Dynamics \& Surrogate Distillation}{22}{section*.3}%
+\contentsline {subsection}{\numberline {1.7}\ignorespaces Pause-State Encoding \& Observable Logistic Regression}{22}{subsection.1.7}%
+\contentsline {subsection}{\numberline {1.8}\ignorespaces Hierarchical State Dynamics \& Deep-Layer Pause Decoding (GLMM)}{25}{subsection.1.8}%
+\contentsline {subsection}{\numberline {1.9}\ignorespaces Black-Box Surrogate Discovery \& Hierarchical White-Box Distillation}{28}{subsection.1.9}%
+\contentsline {subsection}{\numberline {1.10}\ignorespaces Windowed State Evolution \& Temporal Surrogate Distillation}{32}{subsection.1.10}%
+\contentsline {subsection}{\numberline {1.11}\ignorespaces Pre-Post Topological Dislocation \& State-Gap Analysis}{36}{subsection.1.11}%
+\contentsline {section}{Part IV: Event-Related Topological Dynamics \& Statistical Matrices}{39}{section*.4}%
+\contentsline {subsection}{\numberline {1.12}\ignorespaces Event-Related Topological Analysis (ERTA) \& Peak-Valley Contrast}{39}{subsection.1.12}%
+\contentsline {subsection}{\numberline {1.13}\ignorespaces Time-by-Time Topological Contrast Matrices \& Re-Warming Dynamics}{42}{subsection.1.13}%
+\contentsline {subsection}{\numberline {1.14}\ignorespaces FDR Combinatorial Temporal Topology \& Cluster Mapping}{46}{subsection.1.14}%
+\contentsline {subsection}{\numberline {1.15}\ignorespaces Leave-One-Subject-Out (LOSO) Topological Robustness \& CV-AUC}{49}{subsection.1.15}%
+\contentsline {subsection}{\numberline {1.16}\ignorespaces Bivariate Empirical Null Distributions \& Mahalanobis Topological Shock}{52}{subsection.1.16}%
+\contentsline {subsection}{\numberline {1.17}\ignorespaces Hierarchical Geometric Inference \& LMM Mahalanobis Decoding}{55}{subsection.1.17}%
+\contentsline {subsection}{\numberline {1.18}\ignorespaces Multi-Model Topological Competition \& Heavy-Tailed Geometric Inference}{58}{subsection.1.18}%
