@@ -24,3 +24,4 @@
 \contentsline {subsection}{\numberline {1.19}\ignorespaces Massive In-Silico Generative Simulation \& Parametric Pause Decoding}{63}{subsection.1.19}%
 \contentsline {subsection}{\numberline {1.20}\ignorespaces Symplectic Reservoir Refactoring \& LOOCV Predictive Benchmarking}{66}{subsection.1.20}%
 \contentsline {subsection}{\numberline {1.21}\ignorespaces Monte Carlo Dimensional Scaling \& Topological Ablation}{69}{subsection.1.21}%
+\contentsline {subsection}{\numberline {1.22}\ignorespaces Joint Kinematic Decoding \& Bivariate Topological Benchmark}{72}{subsection.1.22}%
