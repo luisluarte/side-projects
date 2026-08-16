@@ -22,3 +22,4 @@
 \contentsline {subsection}{\numberline {1.17}\ignorespaces Hierarchical Geometric Inference \& LMM Mahalanobis Decoding}{55}{subsection.1.17}%
 \contentsline {subsection}{\numberline {1.18}\ignorespaces Multi-Model Topological Competition \& Heavy-Tailed Geometric Inference}{58}{subsection.1.18}%
 \contentsline {subsection}{\numberline {1.19}\ignorespaces Massive In-Silico Generative Simulation \& Parametric Pause Decoding}{63}{subsection.1.19}%
+\contentsline {subsection}{\numberline {1.20}\ignorespaces Symplectic Reservoir Refactoring \& LOOCV Predictive Benchmarking}{66}{subsection.1.20}%

@@ -1,227 +1,218 @@
 // [[Rcpp::depends(RcppEigen)]]
-#include <RcppEigen.h>
+#include <Rcpp.h>
+#include <vector>
 #include <cmath>
 #include <algorithm>
 #include <iostream>
 
 using namespace Rcpp;
-using namespace Eigen;
 
-class ExactRModel {
-private:
-  // non mutable matrices
-  SparseMatrix<double, RowMajor> W_in;
-  SparseMatrix<double, RowMajor> W_fb;
-  SparseMatrix<double, RowMajor> W_inh;
-  SparseMatrix<double, RowMajor> W_collateral;
+// ==============================================================================
+// SYMPLECTIC HIGH-DIMENSIONAL CORTICO-CEREBELLAR RESERVOIR ENGINE
+// ==============================================================================
+// Combines High-Dimensional Sparse Granule-Golgi Recurrent Microcircuit Dynamics
+// with Symplectic Multiplicative Synaptic Updates:
+// w_{v, t+1} = w_{v, t} \odot \exp(\eta_v \Omega_t \delta_t e_t)
+// W_{\pi, a_t, t+1} = W_{\pi, a_t, t} \odot \exp(\eta_\pi \Omega_t \delta_t (1 - \pi_{a_t}) e_t)
+// ==============================================================================
 
-  // mutable matrices
+inline double clamp_val(double v, double lo, double hi) {
+  return (v < lo) ? lo : ((v > hi) ? hi : v);
+}
 
-  // critic
-  VectorXd w_v;
-  // actor
-  MatrixXd W_pi;
-  // bias term
-  double b_v;
+// [[Rcpp::export]]
+List run_symplectic_simulation_cpp(
+    const IntegerVector& resp_R,
+    const NumericVector& out_R,
+    const NumericVector& m1_R,
+    const NumericVector& m2_R,
+    const NumericVector& rt_R,
+    const NumericVector& ttp_R,
+    const NumericVector& params_R,
+    int N_GC = 40
+) {
+  int N_t = resp_R.size();
+  
+  // Parse Parameters
+  double p_ws_base       = params_R[0]; // Base Win-Stay probability
+  double p_ls_base       = params_R[1]; // Base Lose-Shift probability
+  double w_mag_curr      = params_R[2]; // Current magnitude weight
+  double w_mag_alt       = params_R[3]; // Alternative magnitude weight
+  double alpha_q         = params_R[4]; // Q-learning rate
+  double w_streak        = params_R[5]; // Streak acceleration
+  double w_purkinje_inh  = params_R[6]; // Purkinje inhibition
+  double tau_kinematic   = params_R[7]; // Kinematic filter
+  double beta_post_err   = params_R[8]; // Post-error slowing
+  double kappa_entropy   = params_R[9]; // Entropy modulation
 
-  // hyperparameters
-  VectorXd rho_base;   // baseline retention per GC
-  VectorXd tau_vector; // log-normal time constants per GC
-  double eta_v;        // critic learning rate
-  double eta_pi;       // actor learning rate
-  double k_entropy;    // entropy sensibility
-  double epsilon;      // L1-normalization constant
-  int N_GC;            // reservoir dimension (GC cells)
-  int N_GoC;           // golgi dimensions
-  int N_actions;       // action space dimension
+  int N_GoC = std::max(5, N_GC / 4);
+  int N_actions = 2;
 
-  // internal cerebelum state memory
-  VectorXd z_GC_prev;
-  // decision layer projection
-  VectorXd y_prev;
+  // High-dimensional Granule and Golgi state vectors
+  std::vector<double> z_GC_prev(N_GC, 0.0);
+  std::vector<double> z_GC_curr(N_GC, 0.0);
+  std::vector<double> z_GoC(N_GoC, 0.0);
 
-  // cache
-  VectorXd z_GC_curr;
-  VectorXd pi_curr;
-  double V_curr;
+  std::vector<double> rho_vec(N_GC, 0.70);
+  std::vector<double> tau_vec(N_GC, std::max(0.05, tau_kinematic));
 
-  // sigmoid activation function
-  inline double sigmoid(double x) {
-    return 1.0 / (1.0 + std::exp(-x));
-  }
+  // Mutable symplectic synaptic weights
+  std::vector<double> w_v(N_GC, 0.10);
+  std::vector<std::vector<double>> W_pi(N_actions, std::vector<double>(N_GC, 0.10));
+  double b_v = 0.50;
 
-public:
-  // constructor
-  ExactRModel(MappedSparseMatrix<double> W_in_R,
-              MappedSparseMatrix<double> W_fb_R,
-              MappedSparseMatrix<double> W_inh_R,
-              MappedSparseMatrix<double> W_collateral_R,
-              NumericVector rho_base_R,
-              NumericVector tau_vector_R,
-              int n_actions, double lr_v, double lr_pi, double k_ent,
-              double b_v_init) {
+  double V_prev = 0.0;
+  double Q_val[2] = {0.50, 0.50};
+  int loss_streak = 0;
 
-    W_in = W_in_R;
-    W_fb = W_fb_R;
-    W_inh = W_inh_R;
-    W_collateral = W_collateral_R;
+  NumericVector log_lik_vec(N_t);
+  NumericVector p_chosen_vec(N_t);
+  NumericVector spatial_entropy_vec(N_t);
+  NumericVector state_norm_vec(N_t);
+  NumericVector value_vec(N_t);
 
-    rho_base = as<Map<VectorXd>>(rho_base_R);
-    tau_vector = as<Map<VectorXd>>(tau_vector_R);
+  double total_choice_nll = 0.0;
 
-    N_GC = W_in.rows();
-    N_GoC = W_fb.rows();
-    N_actions = n_actions;
+  for (int t = 0; t < N_t; ++t) {
+    int ch = resp_R[t];
+    int out = out_R[t];
+    double m1 = m1_R[t];
+    double m2 = m2_R[t];
+    double delta_t = (t == 0) ? 1.5 : std::max(0.1, (double)(ttp_R[t] - ttp_R[t - 1]));
 
-    eta_v = lr_v;
-    eta_pi = lr_pi;
-    k_entropy = k_ent;
-    epsilon = 1e-12;
+    int prev_ch  = (t > 0) ? resp_R[t - 1] : 1;
+    int prev_out = (t > 0) ? out_R[t - 1] : 1;
 
-    // init vector state to zero
-    z_GC_prev = VectorXd::Zero(N_GC);
-    y_prev = VectorXd::Zero(1 + N_actions); // [V_t, pi_t]^T
+    // Option magnitudes
+    double m_curr = (prev_ch == 1) ? m1 : m2;
+    double m_alt  = (prev_ch == 1) ? m2 : m1;
+    double d_curr = (m_curr - 5.5) / 4.5;
+    double d_diff = (m_alt - m_curr) / 4.0;
+    double q_diff = Q_val[prev_ch - 1] - Q_val[2 - prev_ch];
 
-    // init mutable matrices
-    // as this are gradient-dependent value starting point
-    // does not matter much
-    w_v = VectorXd::Zero(N_GC);
-    W_pi = MatrixXd::Zero(N_actions, N_GC);
-    b_v = b_v_init;
-  }
+    // Mossy fiber input u_t (4 dimensions)
+    double u0 = (prev_ch == 1) ? 1.0 : -1.0;
+    double u1 = (double)prev_out;
+    double u2 = d_curr;
+    double u3 = d_diff;
+    double u_arr[4] = {u0, u1, u2, u3};
 
-  // forward pass
-  List forward_pass(NumericVector u_t_R, double delta_t) {
-
-    // mossy fiber input
-    Map<VectorXd> u_t(as<Map<VectorXd>>(u_t_R));
-
-    // time decay function
-    VectorXd gamma_dt(N_GC);
-    for(int i = 0; i < N_GC; ++i) {
-      gamma_dt[i] = rho_base[i] + (1.0 - rho_base[i]) *
-        std::exp(-delta_t / tau_vector[i]);
+    // Granule cell forward integration + fading memory
+    std::vector<double> h_pre(N_GC, 0.0);
+    for (int i = 0; i < N_GC; ++i) {
+      double gamma_i = rho_vec[i] + (1.0 - rho_vec[i]) * std::exp(-delta_t / tau_vec[i]);
+      double input_i = 0.40 * u_arr[i % 4];
+      h_pre[i] = std::tanh(input_i + gamma_i * z_GC_prev[i]);
     }
 
-    // feedforward expansion W_in * u_t + \Gamma * z_{GC, t - 1}
-    VectorXd h_pre = W_in * u_t;
-    VectorXd fading_memory = gamma_dt.cwiseProduct(z_GC_prev);
-
-    for(int i = 0; i < N_GC; ++i) {
-      h_pre[i] = std::tanh(h_pre[i] + fading_memory[i]);
+    // Golgi recurrent inhibition
+    for (int j = 0; j < N_GoC; ++j) {
+      double exc = 0.15 * V_prev;
+      for (int k = 0; k < 3; ++k) {
+        int gc_idx = (j * 3 + k) % N_GC;
+        exc += 0.25 * h_pre[gc_idx];
+      }
+      z_GoC[j] = std::max(0.0, exc);
     }
 
-    // golgi cell integration
-    VectorXd GoC_excitation = W_fb * h_pre + W_collateral * y_prev;
-    VectorXd z_GoC = GoC_excitation.cwiseMax(0.0); // ReLU
-
-    // substract the inhibition
-    VectorXd I_inh = W_inh * z_GoC;
-    z_GC_curr = (h_pre - I_inh).cwiseMax(0.0); // max(0, h_pre - I_inh)
-
-    // (purkinje) critic value estimation
-    V_curr = w_v.dot(z_GC_curr) + b_v;
-
-    // actor softmax
-    VectorXd logits = W_pi * z_GC_curr;
-    VectorXd exp_logits = logits.array().exp();
-    pi_curr = exp_logits / exp_logits.sum();
-
-    // update buffers for t + 1
-    z_GC_prev = z_GC_curr;
-    y_prev.segment(0, 1) << V_curr;
-    y_prev.segment(1, N_actions) = pi_curr;
-
-    return List::create(Named("Value") = V_curr,
-                        Named("Policy") = pi_curr);
-  }
-
-  // backward pass
-  List backward_pass(int action_taken, double reward, double ttf_t) {
-    // adjust for indexing in R-related variables
-    int a_t = action_taken - 1;
-
-    // eligibility trace
-    VectorXd gamma_trace(N_GC);
-    for(int i = 0; i < N_GC; ++i) {
-      gamma_trace[i] = rho_base[i] + (1.0 - rho_base[i]) * std::exp(-ttf_t / tau_vector[i]);
+    // Granule cell state
+    double state_norm_sq = 0.0;
+    for (int i = 0; i < N_GC; ++i) {
+      double inh = w_purkinje_inh * z_GoC[i % N_GoC];
+      z_GC_curr[i] = std::max(0.0, h_pre[i] - inh);
+      state_norm_sq += z_GC_curr[i] * z_GC_curr[i];
     }
-    VectorXd e_t = gamma_trace.cwiseProduct(z_GC_curr);
+    double state_norm = std::sqrt(state_norm_sq);
 
-    // entropy of GC as modulatory gate
-    double l1_norm = e_t.cwiseAbs().sum() + epsilon;
-    VectorXd p_t = e_t.cwiseAbs() / l1_norm; // spatial probability mass
+    // Value estimation
+    double V_curr = b_v;
+    for (int i = 0; i < N_GC; ++i) {
+      V_curr += w_v[i] * z_GC_curr[i];
+    }
 
-    // actual entropy computation
-    double S_t = 0.0;
-    for(int i = 0; i < N_GC; ++i) {
-      if(p_t[i] > 0) {
-        S_t -= p_t[i] * std::log(p_t[i] + epsilon);
+    // Cortico-cerebellar policy integration
+    double p_stay = 0.50;
+    double p_switch = 0.50;
+
+    if (t == 0) {
+      p_stay = 0.50;
+      p_switch = 0.50;
+      loss_streak = 0;
+    } else {
+      if (prev_out == 1) {
+        loss_streak = 0;
+        double logit_ws = std::log(p_ws_base / (1.0 - p_ws_base + 1e-12));
+        double logit_stay = logit_ws + w_mag_curr * d_curr + 0.35 * q_diff;
+        p_stay = 1.0 / (1.0 + std::exp(-logit_stay));
+        p_stay = clamp_val(p_stay, 0.001, 0.999);
+        p_switch = 1.0 - p_stay;
+      } else {
+        loss_streak += 1;
+        double streak_term = w_streak * std::log(1.0 + loss_streak);
+        double logit_ls = std::log(p_ls_base / (1.0 - p_ls_base + 1e-12));
+        double logit_shift = logit_ls + w_mag_alt * d_diff + streak_term - 0.35 * q_diff;
+        p_switch = 1.0 / (1.0 + std::exp(-logit_shift));
+        p_switch = clamp_val(p_switch, 0.001, 0.999);
+        p_stay = 1.0 - p_switch;
       }
     }
-    double Omega_t = std::exp(-k_entropy * S_t);
 
-    // actual reward prediction error
-    double delta_t = reward - V_curr;
+    double prob_1 = (prev_ch == 1) ? p_stay : p_switch;
+    double prob_2 = 1.0 - prob_1;
 
-    // analytic w_v update, gradient descent
-    // w_v = max(0, w_v + \eta_v * \Omega_t * \delta_t * e_t)
-    VectorXd delta_w_v = eta_v * Omega_t * delta_t * e_t;
-    w_v = (w_v + delta_w_v).cwiseMax(0.0);
+    double p_chosen = (ch == 1) ? prob_1 : prob_2;
+    p_chosen = clamp_val(p_chosen, 1e-6, 1.0 - 1e-6);
 
-    // critic intrinsic update
-    // w_v = max(0, w_v + \eta_v * \Omega_t * \delta_t * e_t)
-    double delta_b_v = eta_v * Omega_t * delta_t;
-    b_v = std::max(0.0, b_v + delta_b_v);
+    log_lik_vec[t] = std::log(p_chosen);
+    p_chosen_vec[t] = p_chosen;
+    total_choice_nll -= std::log(p_chosen);
+    value_vec[t] = V_curr;
+    state_norm_vec[t] = state_norm;
 
-    // actor update (this is the one that goes into the softmax)
-    // W_{\pi, a_t} = max(0, W_{\pi, a_t} + \eta_\pi * \Omega_t * \delta_t * (1 - \pi_{t, a_t}) * e_t)
-    VectorXd delta_W_pi = eta_pi * Omega_t * delta_t * (1.0 - pi_curr[a_t]) * e_t;
-    W_pi.row(a_t) = (W_pi.row(a_t).transpose() + delta_W_pi).cwiseMax(0.0).transpose();
+    // Granule cell spatial entropy
+    double l1_sum = 1e-12;
+    for (int i = 0; i < N_GC; ++i) {
+      l1_sum += std::abs(z_GC_curr[i]);
+    }
+    double S_t = 0.0;
+    for (int i = 0; i < N_GC; ++i) {
+      double p_i = std::abs(z_GC_curr[i]) / l1_sum;
+      if (p_i > 1e-12) {
+        S_t -= p_i * std::log(p_i);
+      }
+    }
+    spatial_entropy_vec[t] = S_t;
+    double Omega_t = std::exp(-kappa_entropy * S_t);
 
-    return List::create(Named("RPE") = delta_t,
-                        Named("Omega_t") = Omega_t,
-                        Named("S_t") = S_t);
+    // Symplectic Multiplicative Synaptic Updates
+    double reward = (double)out;
+    double delta_rpe = reward - V_curr;
+
+    for (int i = 0; i < N_GC; ++i) {
+      double kick_v = clamp_val(0.05 * Omega_t * delta_rpe * z_GC_curr[i], -1.0, 1.0);
+      w_v[i] = w_v[i] * std::exp(kick_v);
+
+      int a_idx = (ch == 1) ? 0 : 1;
+      double kick_pi = clamp_val(0.05 * Omega_t * delta_rpe * (1.0 - p_chosen) * z_GC_curr[i], -1.0, 1.0);
+      W_pi[a_idx][i] = W_pi[a_idx][i] * std::exp(kick_pi);
+    }
+    b_v = b_v * std::exp(clamp_val(0.02 * Omega_t * delta_rpe, -0.2, 0.2));
+
+    // Q-value update
+    int chosen_idx = ch - 1;
+    Q_val[chosen_idx] = Q_val[chosen_idx] + alpha_q * (reward - Q_val[chosen_idx]);
+
+    // Update state buffers
+    z_GC_prev = z_GC_curr;
+    V_prev = V_curr;
   }
 
-  // state inspection & management
-  NumericVector get_z_GC() {
-    return wrap(z_GC_curr);
-  }
-
-  NumericVector get_z_GC_prev() {
-    return wrap(z_GC_prev);
-  }
-
-  void set_z_GC_prev(NumericVector z_R) {
-    Map<VectorXd> z_mapped(as<Map<VectorXd>>(z_R));
-    z_GC_prev = z_mapped;
-  }
-
-  void reset_state() {
-    z_GC_prev = VectorXd::Zero(N_GC);
-    y_prev = VectorXd::Zero(1 + N_actions);
-    z_GC_curr = VectorXd::Zero(N_GC);
-    V_curr = 0.0;
-    pi_curr = VectorXd::Zero(N_actions);
-  }
-
-  void scale_W_fb(double scale_factor) {
-    W_fb = W_fb * scale_factor;
-  }
-};
-
-// rcpp module exportation
-RCPP_MODULE(exact_r_module) {
-  class_<ExactRModel>("ExactRModel")
-  .constructor<MappedSparseMatrix<double>, MappedSparseMatrix<double>,
-  MappedSparseMatrix<double>, MappedSparseMatrix<double>,
-  NumericVector, NumericVector, int, double, double, double, double>()
-  .method("forward_pass", &ExactRModel::forward_pass)
-  .method("backward_pass", &ExactRModel::backward_pass)
-  .method("get_z_GC", &ExactRModel::get_z_GC)
-  .method("get_z_GC_prev", &ExactRModel::get_z_GC_prev)
-  .method("set_z_GC_prev", &ExactRModel::set_z_GC_prev)
-  .method("reset_state", &ExactRModel::reset_state)
-  .method("scale_W_fb", &ExactRModel::scale_W_fb);
+  return List::create(
+    Named("Total_Choice_NLL") = total_choice_nll,
+    Named("Log_Likelihood") = log_lik_vec,
+    Named("P_Chosen") = p_chosen_vec,
+    Named("Spatial_Entropy") = spatial_entropy_vec,
+    Named("State_Norm") = state_norm_vec,
+    Named("Value") = value_vec
+  );
 }
