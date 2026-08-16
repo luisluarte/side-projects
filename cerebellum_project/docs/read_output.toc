@@ -19,3 +19,4 @@
 \contentsline {subsection}{\numberline {1.14}\ignorespaces FDR Combinatorial Temporal Topology \& Cluster Mapping}{45}{subsection.1.14}%
 \contentsline {subsection}{\numberline {1.15}\ignorespaces Leave-One-Subject-Out (LOSO) Topological Robustness \& CV-AUC}{48}{subsection.1.15}%
 \contentsline {subsection}{\numberline {1.16}\ignorespaces Bivariate Empirical Null Distributions \& Mahalanobis Topological Shock}{51}{subsection.1.16}%
+\contentsline {subsection}{\numberline {1.17}\ignorespaces Hierarchical Geometric Inference \& LMM Mahalanobis Decoding}{54}{subsection.1.17}%
