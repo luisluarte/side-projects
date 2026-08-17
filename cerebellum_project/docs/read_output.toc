@@ -32,3 +32,4 @@
 \contentsline {subsection}{\numberline {1.27}\ignorespaces Kinematic Decoding with Static MLI Feedforward Inhibition}{90}{subsection.1.27}%
 \contentsline {subsection}{\numberline {1.28}\ignorespaces Dendritic Compartmentalization and Kinematic Non-Linearity Benchmark}{92}{subsection.1.28}%
 \contentsline {subsection}{\numberline {1.29}\ignorespaces Macroscopic Anatomy and Population Coding Benchmark}{94}{subsection.1.29}%
+\contentsline {subsection}{\numberline {1.30}\ignorespaces Symplectic Rollback and Hierarchical Drift-Diffusion Readout}{96}{subsection.1.30}%
