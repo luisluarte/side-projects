@@ -2,7 +2,7 @@ library(cmaes)
 library(Rcpp)
 library(dplyr)
 
-cat("Loading and partitioning N=30 dataset for Iteration 6...\\n")
+cat("Loading and partitioning FULL dataset for Final Benchmark...\n")
 dataset_path <- "data/raw/behavioral_compilate.csv"
 if (!file.exists(dataset_path)) {
   dataset_path <- "c:/Users/DCCS5/Documents/one_for_all/cerebellum_project/datasets/behavioral_compilate.csv"
@@ -12,9 +12,9 @@ dat_all <- read.csv(dataset_path)
 dat_all[['RT']] <- (as.numeric(dat_all[['ttr']]) - as.numeric(dat_all[['ttp']])) / 1000.0
 dat_all <- dat_all[!is.na(dat_all[['RT']]) & dat_all[['RT']] >= 0.1 & dat_all[['RT']] <= 3.0 & dat_all[['Resp']] %in% c(1, 2), ]
 
-set.seed(1234) # Fixed seed for the entire iterative process
-sample_participants <- sample(unique(dat_all[['participant_id']]), 30)
-dat_all <- dat_all[dat_all[['participant_id']] %in% sample_participants, ]
+# Use ALL participants
+participants <- unique(dat_all[['participant_id']])
+num_participants <- length(participants)
 dat_all$participant_factor <- as.integer(as.factor(dat_all$participant_id))
 
 dat_all <- dat_all %>%
@@ -79,19 +79,102 @@ public:
 };
 
 // [[Rcpp::export]]
+NumericVector evaluate_m1_70_30_cpp(
+    const NumericVector& p,
+    const IntegerVector& resp_R,
+    const IntegerVector& out_R,
+    const NumericVector& rt_R,
+    const IntegerVector& subj_idx_R,
+    const IntegerVector& is_test_R,
+    int num_participants
+) {
+  double b_v = p[0], a_0 = p[1], t_nd = p[2];
+  double train_nll = 0.0;
+  std::vector<double> test_nlls(num_participants + 1, 0.0);
+  int N_t = resp_R.size();
+  
+  for (int t = 0; t < N_t; ++t) {
+    int ch = resp_R[t], subj = subj_idx_R[t];
+    int prev_ch = (t > 0 && subj_idx_R[t] == subj_idx_R[t-1]) ? resp_R[t-1] : 1;
+    int prev_out = (t > 0 && subj_idx_R[t] == subj_idx_R[t-1]) ? out_R[t-1] : 1;
+    int c_wsls = 1;
+    if (t > 0 && subj_idx_R[t] == subj_idx_R[t-1]) c_wsls = (prev_out == 1) ? prev_ch : ((prev_ch == 1) ? 2 : 1);
+    
+    double wsls_signal = (c_wsls == 1) ? 1.0 : -1.0;
+    double v_t = b_v * wsls_signal;
+    double dens = wiener_pdf(rt_R[t], ch, v_t, a_0, t_nd);
+    
+    if (is_test_R[t] == 1) {
+        if(subj >= 1 && subj <= num_participants) test_nlls[subj] -= std::log(dens);
+    } else {
+        train_nll -= std::log(dens);
+    }
+  }
+  if (std::isnan(train_nll) || std::isinf(train_nll)) train_nll = 1e9;
+  test_nlls[0] = train_nll;
+  return wrap(test_nlls);
+}
+
+// [[Rcpp::export]]
+NumericVector evaluate_m2_70_30_cpp(
+    const NumericVector& p,
+    const IntegerVector& resp_R,
+    const IntegerVector& out_R,
+    const NumericVector& rt_R,
+    const IntegerVector& subj_idx_R,
+    const IntegerVector& is_test_R,
+    int num_participants
+) {
+  double alpha_q = p[0], b_v = p[1], a_0 = p[2], k_mod = p[3], t_nd = p[4];
+  double Q_rw_cf[2] = {0.50, 0.50};
+  double train_nll = 0.0;
+  std::vector<double> test_nlls(num_participants + 1, 0.0);
+  int N_t = resp_R.size();
+  
+  for (int t = 0; t < N_t; ++t) {
+    if (t > 0 && subj_idx_R[t] != subj_idx_R[t-1]) { Q_rw_cf[0] = 0.50; Q_rw_cf[1] = 0.50; }
+    
+    int ch = resp_R[t], out = out_R[t], subj = subj_idx_R[t];
+    double q_diff = Q_rw_cf[0] - Q_rw_cf[1];
+    
+    double chosen_q = Q_rw_cf[ch - 1];
+    double delta_rpe = (double)out - chosen_q;
+    double rpe_abs = std::abs(delta_rpe);
+    
+    double v_t = b_v * q_diff;
+    double a_t = std::max(0.30, a_0 + k_mod * rpe_abs);
+    double dens = wiener_pdf(rt_R[t], ch, v_t, a_t, t_nd);
+    
+    if (is_test_R[t] == 1) {
+        if(subj >= 1 && subj <= num_participants) test_nlls[subj] -= std::log(dens);
+    } else {
+        train_nll -= std::log(dens);
+    }
+    
+    double current_alpha = (is_test_R[t] == 1) ? 0.0 : alpha_q;
+    Q_rw_cf[ch - 1] += current_alpha * delta_rpe;
+    int unch_idx = (ch == 1) ? 1 : 0;
+    Q_rw_cf[unch_idx] += current_alpha * ((1.0 - (double)out) - Q_rw_cf[unch_idx]);
+  }
+  if (std::isnan(train_nll) || std::isinf(train_nll)) train_nll = 1e9;
+  test_nlls[0] = train_nll;
+  return wrap(test_nlls);
+}
+
+// [[Rcpp::export]]
 NumericVector evaluate_eccm_cv_dynamic_iter6(
     const NumericVector& phi_17d, const IntegerVector& resp_R, const IntegerVector& out_R,
     const NumericVector& m1_R, const NumericVector& m2_R, const NumericVector& rt_R,
     const NumericVector& ttp_R, const NumericVector& ttf_R, const IntegerVector& subj_idx_R,
-    const IntegerVector& is_test_R, int use_goc, int use_dat, int use_anticorr, int N_MF, int N_GC, int N_MLI
+    const IntegerVector& is_test_R, int N_MF, int N_GC, int N_MLI, int num_participants
 ) {
   int N_t = resp_R.size();
   double beta_v=phi_17d[0], a_0=phi_17d[1], t_nd=phi_17d[2], kappa_a=phi_17d[3], mu_beta=phi_17d[4], sigma_beta=phi_17d[5];
   double lambda_d=phi_17d[6], mu_tau=phi_17d[7], sigma_tau=phi_17d[8], rho_base=phi_17d[9], eta=phi_17d[10], lambda=phi_17d[11], theta_th=phi_17d[12];
   double alpha_goc = phi_17d[13];
   double kappa_th = phi_17d[14];
-  double alpha_dcn = phi_17d[15]; // NEW: Low-pass filter integration rate
-  double gamma_e = phi_17d[16]; // NEW: Eligibility trace decay
+  double alpha_dcn = phi_17d[15]; 
+  double gamma_e = phi_17d[16]; 
   
   SimpleRNG rng(42);
   
@@ -118,12 +201,12 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
   for (int k=0; k<N_MLI; ++k) for (int i=0; i<N_GC; ++i) W_GC_MLI[k][i] = rng.runif()*theta_max;
 
   std::vector<double> z_GC_curr(N_GC, 0.0), z_GC_prev(N_GC, 0.0), W_PF1(N_MLI, 0.0), W_PF2(N_MLI, 0.0);
-  std::vector<double> e_trace(N_MLI, 0.0); // NEW: Eligibility trace
+  std::vector<double> e_trace(N_MLI, 0.0); 
   std::vector<std::vector<double>> state_hist(15, std::vector<double>(6, 0.0));
-  double D_t = 0.0; // NEW: DCN Integrator
+  double D_t = 0.0; 
   
   double train_nll = 0.0;
-  std::vector<double> test_nlls(31, 0.0); 
+  std::vector<double> test_nlls(num_participants + 1, 0.0); 
   
   for (int t=0; t<N_t; ++t) {
     if (t>0 && subj_idx_R[t]!=subj_idx_R[t-1]) {
@@ -164,7 +247,7 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
     for (int i=0; i<N_GC; ++i) {
         double gamma_decay = rho_base + (1.0-rho_base)*std::exp(-delta_t_val/tau_vec[i]);
         double base_update = in_sum_vec[i] + gamma_decay*z_GC_prev[i];
-        if (use_goc == 1) base_update -= alpha_goc * G_t_input;
+        base_update -= alpha_goc * G_t_input;
         z_GC_curr[i] = std::max(0.0, base_update);
     }
 
@@ -176,15 +259,14 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
     }
     H_t /= (double)N_MLI;
 
-    double current_theta = theta_th;
-    if (use_dat == 1) current_theta += kappa_th * H_t;
+    double current_theta = theta_th + kappa_th * H_t;
 
     std::vector<double> h_MLI(N_MLI, 0.0);
     double l1_mli_sum = 1e-12;
     for (int k=0; k<N_MLI; ++k) {
         h_MLI[k] = std::max(0.0, pool_sum_vec[k] - current_theta);
         l1_mli_sum += h_MLI[k];
-        e_trace[k] = gamma_e * e_trace[k] + h_MLI[k]; // NEW: Update eligibility trace
+        e_trace[k] = gamma_e * e_trace[k] + h_MLI[k]; 
     }
     
     double S_MLI = 0.0;
@@ -195,7 +277,7 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
     for (int k=0; k<N_MLI; ++k) { y_PC1 += W_PF1[k]*h_MLI[k]; y_PC2 += W_PF2[k]*h_MLI[k]; }
 
     double pc_diff = y_PC1 - y_PC2;
-    D_t = (1.0 - alpha_dcn) * D_t + alpha_dcn * pc_diff; // NEW: DCN Leaky Integration
+    D_t = (1.0 - alpha_dcn) * D_t + alpha_dcn * pc_diff; 
     
     double v_t_ddm = beta_v * D_t;
     double a_t = std::max(0.30, a_0 + kappa_a*norm_S);
@@ -207,17 +289,15 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
         train_nll += nll_t;
         double target_chosen = ((double)out - 0.5)*2.0;
         
-        if (use_anticorr == 1) {
-            double target_unchosen = -target_chosen;
-            double delta_IO_1 = (ch==1) ? (target_chosen - y_PC1) : (target_unchosen - y_PC1);
-            double delta_IO_2 = (ch==2) ? (target_chosen - y_PC2) : (target_unchosen - y_PC2);
-            for (int k=0; k<N_MLI; ++k) {
-                W_PF1[k] += eta*delta_IO_1*e_trace[k] - lambda*W_PF1[k]; // Use trace
-                W_PF2[k] += eta*delta_IO_2*e_trace[k] - lambda*W_PF2[k]; // Use trace
-            }
+        double target_unchosen = -target_chosen;
+        double delta_IO_1 = (ch==1) ? (target_chosen - y_PC1) : (target_unchosen - y_PC1);
+        double delta_IO_2 = (ch==2) ? (target_chosen - y_PC2) : (target_unchosen - y_PC2);
+        for (int k=0; k<N_MLI; ++k) {
+            W_PF1[k] += eta*delta_IO_1*e_trace[k] - lambda*W_PF1[k]; 
+            W_PF2[k] += eta*delta_IO_2*e_trace[k] - lambda*W_PF2[k]; 
         }
     } else {
-        if(subj >= 1 && subj <= 30) test_nlls[subj] += nll_t;
+        if(subj >= 1 && subj <= num_participants) test_nlls[subj] += nll_t;
     }
     
     z_GC_prev = z_GC_curr;
@@ -230,35 +310,68 @@ NumericVector evaluate_eccm_cv_dynamic_iter6(
 '
 sourceCpp(code = cpp_code)
 
-res_iter1 <- read.csv("results/tables/iteration_1_n30.csv")
-results_df <- data.frame(Participant = res_iter1$Participant, M1_NLL = res_iter1$M1_NLL, M2_NLL = res_iter1$M2_NLL)
+# --- M1 Optimization ---
+cat("Training Baseline M1 (WSLS)...\n")
+m1_lower <- c(0.01, 0.40, 0.08)
+m1_upper <- c(3.50, 2.50, 0.30)
+m1_init <- c(0.80, 1.20, 0.18)
 
-# ================= Combined ECCM + AntiCorr + LP Filter + Traces (20:200:40) ================= #
-cat("Training Combined ECCM (MF=20, GC=200, MLI=40, AntiCorr=1, DCN_Filter=1, Traces=1)...\n")
-# Added 17th parameter: gamma_e
+obj_m1 <- function(p) {
+    if(any(p<m1_lower)||any(p>m1_upper)) return(1e9)
+    res <- evaluate_m1_70_30_cpp(p, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$RT, dat_all$participant_factor, as.integer(dat_all$is_test), num_participants)
+    return(res[1])
+}
+m1_res <- optim(m1_init, obj_m1, method="L-BFGS-B", lower=m1_lower, upper=m1_upper, control=list(maxit=30))
+m1_test_nlls <- evaluate_m1_70_30_cpp(m1_res$par, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$RT, dat_all$participant_factor, as.integer(dat_all$is_test), num_participants)
+m1_test_nlls <- m1_test_nlls[2:(num_participants+1)]
+
+# --- M2 Optimization ---
+cat("Training Baseline M2 (RWCF)...\n")
+m2_lower <- c(0.01, 0.01, 0.40, 0.00, 0.08)
+m2_upper <- c(0.90, 3.50, 2.50, 0.50, 0.30)
+m2_init <- c(0.15, 0.80, 1.20, 0.05, 0.18)
+
+obj_m2 <- function(p) {
+    if(any(p<m2_lower)||any(p>m2_upper)) return(1e9)
+    res <- evaluate_m2_70_30_cpp(p, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$RT, dat_all$participant_factor, as.integer(dat_all$is_test), num_participants)
+    return(res[1])
+}
+m2_res <- optim(m2_init, obj_m2, method="L-BFGS-B", lower=m2_lower, upper=m2_upper, control=list(maxit=30))
+m2_test_nlls <- evaluate_m2_70_30_cpp(m2_res$par, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$RT, dat_all$participant_factor, as.integer(dat_all$is_test), num_participants)
+m2_test_nlls <- m2_test_nlls[2:(num_participants+1)]
+
+# ================= Combined ECCM ================= #
+cat("Training Unified Temporal Integration ECCM...\n")
 lower_bounds <- c(b_v = 0.0, a_0 = 0.30, t_nd = 0.10, kappa_a = 0.0, mu_beta = -2.0, sigma_beta = 0.01, lambda_d = 0.0, mu_tau = -2.0, sigma_tau = 0.01, rho_base = 0.0, eta = 0.0, lambda = 0.0, theta_th = 0.0, alpha_goc = 0.0, kappa_th = 0.0, alpha_dcn = 0.01, gamma_e = 0.0)
 upper_bounds <- c(b_v = 5.0, a_0 = 2.50, t_nd = 0.90, kappa_a = 2.0, mu_beta =  2.0, sigma_beta = 2.00, lambda_d = 5.0, mu_tau =  2.0, sigma_tau = 2.00, rho_base = 0.95, eta = 1.0, lambda = 0.5, theta_th = 0.5, alpha_goc = 2.0, kappa_th = 2.0, alpha_dcn = 1.0, gamma_e = 0.95)
 initial_phi <- lower_bounds + (upper_bounds - lower_bounds) / 2
 
 obj_eccm <- function(phi) {
     if (any(phi < lower_bounds) || any(phi > upper_bounds)) return(1e9)
-    res <- evaluate_eccm_cv_dynamic_iter6(phi, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$Bd1, dat_all$Bd2, dat_all$RT, as.numeric(dat_all$ttp), as.numeric(dat_all$ttF), dat_all$participant_factor, as.integer(dat_all$is_test), 1, 1, 1, 20, 200, 40)
+    res <- evaluate_eccm_cv_dynamic_iter6(phi, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$Bd1, dat_all$Bd2, dat_all$RT, as.numeric(dat_all$ttp), as.numeric(dat_all$ttF), dat_all$participant_factor, as.integer(dat_all$is_test), 20, 200, 40, num_participants)
     return(res[1]) 
 }
 cma_eccm <- cma_es(initial_phi, obj_eccm, lower = lower_bounds, upper = upper_bounds, control = list(maxit = 35, trace = TRUE, sigma = 0.2))
-results_df$ECCM_Iter6_NLL <- evaluate_eccm_cv_dynamic_iter6(cma_eccm$par, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$Bd1, dat_all$Bd2, dat_all$RT, as.numeric(dat_all$ttp), as.numeric(dat_all$ttF), dat_all$participant_factor, as.integer(dat_all$is_test), 1, 1, 1, 20, 200, 40)[2:31]
+eccm_test_nlls <- evaluate_eccm_cv_dynamic_iter6(cma_eccm$par, as.integer(dat_all$Resp), as.integer(dat_all$F), dat_all$Bd1, dat_all$Bd2, dat_all$RT, as.numeric(dat_all$ttp), as.numeric(dat_all$ttF), dat_all$participant_factor, as.integer(dat_all$is_test), 20, 200, 40, num_participants)
+eccm_test_nlls <- eccm_test_nlls[2:(num_participants+1)]
+
+results_df <- data.frame(
+    Participant = participants,
+    M1_NLL = m1_test_nlls,
+    M2_NLL = m2_test_nlls,
+    ECCM_NLL = eccm_test_nlls
+)
+write.csv(results_df, "results/tables/final_128_benchmark.csv", row.names=FALSE)
 
 cat("\n======================================\n")
-cat("AGGREGATE TEST NLL ACROSS 30 PARTICIPANTS\n")
+cat(sprintf("AGGREGATE TEST NLL ACROSS %d PARTICIPANTS\n", num_participants))
 cat(sprintf("M1 (WSLS) : %.2f\n", sum(results_df$M1_NLL)))
 cat(sprintf("M2 (RWCF) : %.2f\n", sum(results_df$M2_NLL)))
-cat(sprintf("ECCM Iter6: %.2f\n", sum(results_df$ECCM_Iter6_NLL)))
+cat(sprintf("ECCM Final: %.2f\n", sum(results_df$ECCM_NLL)))
 
 cat("\n--- PAIRED T-TESTS (Participant Level) ---\n")
-t1 <- t.test(results_df$M1_NLL, results_df$ECCM_Iter6_NLL, paired=TRUE)
-cat(sprintf("M1 vs ECCM6: t = %.2f, p = %.3e (Mean Diff: %.2f)\n", t1$statistic, t1$p.value, t1$estimate))
+t1 <- t.test(results_df$M1_NLL, results_df$ECCM_NLL, paired=TRUE)
+cat(sprintf("M1 vs ECCM: t = %.2f, p = %.3e (Mean Diff: %.2f)\n", t1$statistic, t1$p.value, t1$estimate))
 
-t2 <- t.test(results_df$M2_NLL, results_df$ECCM_Iter6_NLL, paired=TRUE)
-cat(sprintf("M2 vs ECCM6: t = %.2f, p = %.3e (Mean Diff: %.2f)\n", t2$statistic, t2$p.value, t2$estimate))
-
-write.csv(results_df, "results/tables/iteration_6_n30.csv", row.names=FALSE)
+t2 <- t.test(results_df$M2_NLL, results_df$ECCM_NLL, paired=TRUE)
+cat(sprintf("M2 vs ECCM: t = %.2f, p = %.3e (Mean Diff: %.2f)\n", t2$statistic, t2$p.value, t2$estimate))
