@@ -30,3 +30,4 @@
 \contentsline {subsection}{\numberline {1.25}\ignorespaces Empirical Sensory Feedback \& Gamma Kinematic Optimization}{83}{subsection.1.25}%
 \contentsline {subsection}{\numberline {1.26}\ignorespaces Automated Biological Search for High-Correlation Kinematic Decoding}{87}{subsection.1.26}%
 \contentsline {subsection}{\numberline {1.27}\ignorespaces Kinematic Decoding with Static MLI Feedforward Inhibition}{90}{subsection.1.27}%
+\contentsline {subsection}{\numberline {1.28}\ignorespaces Dendritic Compartmentalization and Kinematic Non-Linearity Benchmark}{92}{subsection.1.28}%
