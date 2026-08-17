@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.5.21)  16 AUG 2026 21:18
+This is pdfTeX, Version 3.141592653-2.6-1.40.28 (TeX Live 2025) (preloaded format=pdflatex 2025.5.21)  16 AUG 2026 21:34
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -567,14 +567,14 @@ Package fancyhdr Warning: \headheight is too small (12.0pt):
 (fancyhdr)                \addtolength{\topmargin}{-1.59999pt}.
 
 [4]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=187, 597.50829pt x 845.0471pt
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=192, 597.50829pt x 845.0471pt
 >
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf>
 Package pdftex.def Info: Cerebellar_Reservoir_Comprehensive_Paper.pdf  used on 
 input line 129.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=189, page=1, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=194, page=1, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 1>
@@ -606,7 +606,7 @@ sed on input line 129.
 [5
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=250, page=2, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=255, page=2, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 2>
@@ -628,7 +628,7 @@ sed on input line 129.
 [6
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=298, page=3, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=303, page=3, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 3>
@@ -650,7 +650,7 @@ sed on input line 129.
 [7
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=317, page=4, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=322, page=4, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 4>
@@ -672,7 +672,7 @@ sed on input line 129.
 [8
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=323, page=5, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=328, page=5, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 5>
@@ -694,7 +694,7 @@ sed on input line 129.
 [9
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=329, page=6, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=334, page=6, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 6>
@@ -716,7 +716,7 @@ sed on input line 129.
 [10
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=358, page=7, 597.50829pt x 84
+<Cerebellar_Reservoir_Comprehensive_Paper.pdf, id=363, page=7, 597.50829pt x 84
 5.0471pt>
 File: Cerebellar_Reservoir_Comprehensive_Paper.pdf Graphic file (type pdf)
 <use Cerebellar_Reservoir_Comprehensive_Paper.pdf, page 7>
@@ -738,7 +738,7 @@ sed on input line 129.
 [11
 
  <./Cerebellar_Reservoir_Comprehensive_Paper.pdf>]
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=364, 597.50829p
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=369, 597.50829p
 t x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -746,7 +746,7 @@ type pdf)
 Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 .pdf  used on input line 131.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=366, page=1, 59
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=371, page=1, 59
 7.50829pt x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -783,7 +783,7 @@ Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 [12
 
  <./Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf>]
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=441, page=2, 59
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=446, page=2, 59
 7.50829pt x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -808,7 +808,7 @@ Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 [13
 
  <./Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf>]
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=454, page=3, 59
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=459, page=3, 59
 7.50829pt x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -833,7 +833,7 @@ Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 [14
 
  <./Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf>]
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=472, page=4, 59
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=477, page=4, 59
 7.50829pt x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -858,7 +858,7 @@ Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 [15
 
  <./Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf>]
-<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=478, page=5, 59
+<Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf, id=483, page=5, 59
 7.50829pt x 845.0471pt>
 File: Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf Graphic file (
 type pdf)
@@ -883,14 +883,14 @@ Package pdftex.def Info: Theoretical_Master_Formalization_and_Asymptotic_Proofs
 [16
 
  <./Theoretical_Master_Formalization_and_Asymptotic_Proofs.pdf>]
-<Theoretical_60_Iterations_Master_Compilation.pdf, id=484, 597.50829pt x 845.04
+<Theoretical_60_Iterations_Master_Compilation.pdf, id=489, 597.50829pt x 845.04
 71pt>
 File: Theoretical_60_Iterations_Master_Compilation.pdf Graphic file (type pdf)
 <use Theoretical_60_Iterations_Master_Compilation.pdf>
 Package pdftex.def Info: Theoretical_60_Iterations_Master_Compilation.pdf  used
  on input line 133.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Theoretical_60_Iterations_Master_Compilation.pdf, id=486, page=1, 597.50829pt 
+<Theoretical_60_Iterations_Master_Compilation.pdf, id=491, page=1, 597.50829pt 
 x 845.0471pt>
 File: Theoretical_60_Iterations_Master_Compilation.pdf Graphic file (type pdf)
 <use Theoretical_60_Iterations_Master_Compilation.pdf, page 1>
@@ -922,7 +922,7 @@ e1 used on input line 133.
 [17
 
  <./Theoretical_60_Iterations_Master_Compilation.pdf>]
-<Theoretical_60_Iterations_Master_Compilation.pdf, id=531, page=2, 597.50829pt 
+<Theoretical_60_Iterations_Master_Compilation.pdf, id=536, page=2, 597.50829pt 
 x 845.0471pt>
 File: Theoretical_60_Iterations_Master_Compilation.pdf Graphic file (type pdf)
 <use Theoretical_60_Iterations_Master_Compilation.pdf, page 2>
@@ -944,13 +944,13 @@ e2 used on input line 133.
 [18
 
  <./Theoretical_60_Iterations_Master_Compilation.pdf>]
-<Phenotypic_Landscape_WSLS_Alignment.pdf, id=561, 597.50829pt x 845.0471pt>
+<Phenotypic_Landscape_WSLS_Alignment.pdf, id=566, 597.50829pt x 845.0471pt>
 File: Phenotypic_Landscape_WSLS_Alignment.pdf Graphic file (type pdf)
 <use Phenotypic_Landscape_WSLS_Alignment.pdf>
 Package pdftex.def Info: Phenotypic_Landscape_WSLS_Alignment.pdf  used on input
  line 142.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Phenotypic_Landscape_WSLS_Alignment.pdf, id=563, page=1, 597.50829pt x 845.047
+<Phenotypic_Landscape_WSLS_Alignment.pdf, id=568, page=1, 597.50829pt x 845.047
 1pt>
 File: Phenotypic_Landscape_WSLS_Alignment.pdf Graphic file (type pdf)
 <use Phenotypic_Landscape_WSLS_Alignment.pdf, page 1>
@@ -982,7 +982,7 @@ n input line 142.
 [19
 
  <./Phenotypic_Landscape_WSLS_Alignment.pdf>]
-<Phenotypic_Landscape_WSLS_Alignment.pdf, id=613, page=2, 597.50829pt x 845.047
+<Phenotypic_Landscape_WSLS_Alignment.pdf, id=618, page=2, 597.50829pt x 845.047
 1pt>
 File: Phenotypic_Landscape_WSLS_Alignment.pdf Graphic file (type pdf)
 <use Phenotypic_Landscape_WSLS_Alignment.pdf, page 2>
@@ -1004,7 +1004,7 @@ n input line 142.
 [20
 
  <./Phenotypic_Landscape_WSLS_Alignment.pdf>]
-<Phenotypic_Landscape_WSLS_Alignment.pdf, id=628, page=3, 597.50829pt x 845.047
+<Phenotypic_Landscape_WSLS_Alignment.pdf, id=633, page=3, 597.50829pt x 845.047
 1pt>
 File: Phenotypic_Landscape_WSLS_Alignment.pdf Graphic file (type pdf)
 <use Phenotypic_Landscape_WSLS_Alignment.pdf, page 3>
@@ -1026,13 +1026,13 @@ n input line 142.
 [21
 
  <./Phenotypic_Landscape_WSLS_Alignment.pdf>]
-<Pause_State_Encoding_Analysis.pdf, id=654, 597.50829pt x 845.0471pt>
+<Pause_State_Encoding_Analysis.pdf, id=659, 597.50829pt x 845.0471pt>
 File: Pause_State_Encoding_Analysis.pdf Graphic file (type pdf)
 <use Pause_State_Encoding_Analysis.pdf>
 Package pdftex.def Info: Pause_State_Encoding_Analysis.pdf  used on input line 
 151.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Pause_State_Encoding_Analysis.pdf, id=656, page=1, 597.50829pt x 845.0471pt>
+<Pause_State_Encoding_Analysis.pdf, id=661, page=1, 597.50829pt x 845.0471pt>
 File: Pause_State_Encoding_Analysis.pdf Graphic file (type pdf)
 <use Pause_State_Encoding_Analysis.pdf, page 1>
 Package pdftex.def Info: Pause_State_Encoding_Analysis.pdf , page1 used on inpu
@@ -1063,7 +1063,7 @@ t line 151.
 [22
 
  <./Pause_State_Encoding_Analysis.pdf>]
-<Pause_State_Encoding_Analysis.pdf, id=715, page=2, 597.50829pt x 845.0471pt>
+<Pause_State_Encoding_Analysis.pdf, id=720, page=2, 597.50829pt x 845.0471pt>
 File: Pause_State_Encoding_Analysis.pdf Graphic file (type pdf)
 <use Pause_State_Encoding_Analysis.pdf, page 2>
 Package pdftex.def Info: Pause_State_Encoding_Analysis.pdf , page2 used on inpu
@@ -1084,7 +1084,7 @@ t line 151.
 [23
 
  <./Pause_State_Encoding_Analysis.pdf>]
-<Pause_State_Encoding_Analysis.pdf, id=742, page=3, 597.50829pt x 845.0471pt>
+<Pause_State_Encoding_Analysis.pdf, id=747, page=3, 597.50829pt x 845.0471pt>
 File: Pause_State_Encoding_Analysis.pdf Graphic file (type pdf)
 <use Pause_State_Encoding_Analysis.pdf, page 3>
 Package pdftex.def Info: Pause_State_Encoding_Analysis.pdf , page3 used on inpu
@@ -1105,13 +1105,13 @@ t line 151.
 [24
 
  <./Pause_State_Encoding_Analysis.pdf>]
-<Hierarchical_Deep_State_Decoding.pdf, id=748, 597.50829pt x 845.0471pt>
+<Hierarchical_Deep_State_Decoding.pdf, id=753, 597.50829pt x 845.0471pt>
 File: Hierarchical_Deep_State_Decoding.pdf Graphic file (type pdf)
 <use Hierarchical_Deep_State_Decoding.pdf>
 Package pdftex.def Info: Hierarchical_Deep_State_Decoding.pdf  used on input li
 ne 153.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Hierarchical_Deep_State_Decoding.pdf, id=750, page=1, 597.50829pt x 845.0471pt
+<Hierarchical_Deep_State_Decoding.pdf, id=755, page=1, 597.50829pt x 845.0471pt
 >
 File: Hierarchical_Deep_State_Decoding.pdf Graphic file (type pdf)
 <use Hierarchical_Deep_State_Decoding.pdf, page 1>
@@ -1143,7 +1143,7 @@ nput line 153.
 [25
 
  <./Hierarchical_Deep_State_Decoding.pdf>]
-<Hierarchical_Deep_State_Decoding.pdf, id=817, page=2, 597.50829pt x 845.0471pt
+<Hierarchical_Deep_State_Decoding.pdf, id=822, page=2, 597.50829pt x 845.0471pt
 >
 File: Hierarchical_Deep_State_Decoding.pdf Graphic file (type pdf)
 <use Hierarchical_Deep_State_Decoding.pdf, page 2>
@@ -1165,7 +1165,7 @@ nput line 153.
 [26
 
  <./Hierarchical_Deep_State_Decoding.pdf>]
-<Hierarchical_Deep_State_Decoding.pdf, id=828, page=3, 597.50829pt x 845.0471pt
+<Hierarchical_Deep_State_Decoding.pdf, id=833, page=3, 597.50829pt x 845.0471pt
 >
 File: Hierarchical_Deep_State_Decoding.pdf Graphic file (type pdf)
 <use Hierarchical_Deep_State_Decoding.pdf, page 3>
@@ -1187,13 +1187,13 @@ nput line 153.
 [27
 
  <./Hierarchical_Deep_State_Decoding.pdf>]
-<Surrogate_Distillation_Pause_Decoding.pdf, id=843, 597.50829pt x 845.0471pt>
+<Surrogate_Distillation_Pause_Decoding.pdf, id=848, 597.50829pt x 845.0471pt>
 File: Surrogate_Distillation_Pause_Decoding.pdf Graphic file (type pdf)
 <use Surrogate_Distillation_Pause_Decoding.pdf>
 Package pdftex.def Info: Surrogate_Distillation_Pause_Decoding.pdf  used on inp
 ut line 155.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Surrogate_Distillation_Pause_Decoding.pdf, id=845, page=1, 597.50829pt x 845.0
+<Surrogate_Distillation_Pause_Decoding.pdf, id=850, page=1, 597.50829pt x 845.0
 471pt>
 File: Surrogate_Distillation_Pause_Decoding.pdf Graphic file (type pdf)
 <use Surrogate_Distillation_Pause_Decoding.pdf, page 1>
@@ -1225,7 +1225,7 @@ Package pdftex.def Info: Surrogate_Distillation_Pause_Decoding.pdf , page1 used
 [28
 
  <./Surrogate_Distillation_Pause_Decoding.pdf>]
-<Surrogate_Distillation_Pause_Decoding.pdf, id=896, page=2, 597.50829pt x 845.0
+<Surrogate_Distillation_Pause_Decoding.pdf, id=901, page=2, 597.50829pt x 845.0
 471pt>
 File: Surrogate_Distillation_Pause_Decoding.pdf Graphic file (type pdf)
 <use Surrogate_Distillation_Pause_Decoding.pdf, page 2>
@@ -1247,7 +1247,7 @@ Package pdftex.def Info: Surrogate_Distillation_Pause_Decoding.pdf , page2 used
 [29
 
  <./Surrogate_Distillation_Pause_Decoding.pdf>]
-<Surrogate_Distillation_Pause_Decoding.pdf, id=919, page=3, 597.50829pt x 845.0
+<Surrogate_Distillation_Pause_Decoding.pdf, id=924, page=3, 597.50829pt x 845.0
 471pt>
 File: Surrogate_Distillation_Pause_Decoding.pdf Graphic file (type pdf)
 <use Surrogate_Distillation_Pause_Decoding.pdf, page 3>
@@ -1269,7 +1269,7 @@ Package pdftex.def Info: Surrogate_Distillation_Pause_Decoding.pdf , page3 used
 [30
 
  <./Surrogate_Distillation_Pause_Decoding.pdf>]
-<Surrogate_Distillation_Pause_Decoding.pdf, id=931, page=4, 597.50829pt x 845.0
+<Surrogate_Distillation_Pause_Decoding.pdf, id=936, page=4, 597.50829pt x 845.0
 471pt>
 File: Surrogate_Distillation_Pause_Decoding.pdf Graphic file (type pdf)
 <use Surrogate_Distillation_Pause_Decoding.pdf, page 4>
@@ -1291,13 +1291,13 @@ Package pdftex.def Info: Surrogate_Distillation_Pause_Decoding.pdf , page4 used
 [31
 
  <./Surrogate_Distillation_Pause_Decoding.pdf>]
-<Windowed_Trajectory_Pause_Decoding.pdf, id=946, 597.50829pt x 845.0471pt>
+<Windowed_Trajectory_Pause_Decoding.pdf, id=951, 597.50829pt x 845.0471pt>
 File: Windowed_Trajectory_Pause_Decoding.pdf Graphic file (type pdf)
 <use Windowed_Trajectory_Pause_Decoding.pdf>
 Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf  used on input 
 line 157.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Windowed_Trajectory_Pause_Decoding.pdf, id=948, page=1, 597.50829pt x 845.0471
+<Windowed_Trajectory_Pause_Decoding.pdf, id=953, page=1, 597.50829pt x 845.0471
 pt>
 File: Windowed_Trajectory_Pause_Decoding.pdf Graphic file (type pdf)
 <use Windowed_Trajectory_Pause_Decoding.pdf, page 1>
@@ -1329,8 +1329,8 @@ Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf , page1 used on
 [32
 
  <./Windowed_Trajectory_Pause_Decoding.pdf>]
-<Windowed_Trajectory_Pause_Decoding.pdf, id=995, page=2, 597.50829pt x 845.0471
-pt>
+<Windowed_Trajectory_Pause_Decoding.pdf, id=1000, page=2, 597.50829pt x 845.047
+1pt>
 File: Windowed_Trajectory_Pause_Decoding.pdf Graphic file (type pdf)
 <use Windowed_Trajectory_Pause_Decoding.pdf, page 2>
 Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf , page2 used on
@@ -1351,7 +1351,7 @@ Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf , page2 used on
 [33
 
  <./Windowed_Trajectory_Pause_Decoding.pdf>]
-<Windowed_Trajectory_Pause_Decoding.pdf, id=1014, page=3, 597.50829pt x 845.047
+<Windowed_Trajectory_Pause_Decoding.pdf, id=1019, page=3, 597.50829pt x 845.047
 1pt>
 File: Windowed_Trajectory_Pause_Decoding.pdf Graphic file (type pdf)
 <use Windowed_Trajectory_Pause_Decoding.pdf, page 3>
@@ -1373,7 +1373,7 @@ Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf , page3 used on
 [34
 
  <./Windowed_Trajectory_Pause_Decoding.pdf>]
-<Windowed_Trajectory_Pause_Decoding.pdf, id=1029, page=4, 597.50829pt x 845.047
+<Windowed_Trajectory_Pause_Decoding.pdf, id=1034, page=4, 597.50829pt x 845.047
 1pt>
 File: Windowed_Trajectory_Pause_Decoding.pdf Graphic file (type pdf)
 <use Windowed_Trajectory_Pause_Decoding.pdf, page 4>
@@ -1395,14 +1395,14 @@ Package pdftex.def Info: Windowed_Trajectory_Pause_Decoding.pdf , page4 used on
 [35
 
  <./Windowed_Trajectory_Pause_Decoding.pdf>]
-<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1043, 597.50829pt x 845.0471
+<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1048, 597.50829pt x 845.0471
 pt>
 File: Pre_Post_Topological_Dislocation_Analysis.pdf Graphic file (type pdf)
 <use Pre_Post_Topological_Dislocation_Analysis.pdf>
 Package pdftex.def Info: Pre_Post_Topological_Dislocation_Analysis.pdf  used on
  input line 159.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1045, page=1, 597.50829pt x 
+<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1050, page=1, 597.50829pt x 
 845.0471pt>
 File: Pre_Post_Topological_Dislocation_Analysis.pdf Graphic file (type pdf)
 <use Pre_Post_Topological_Dislocation_Analysis.pdf, page 1>
@@ -1434,7 +1434,7 @@ used on input line 159.
 [36
 
  <./Pre_Post_Topological_Dislocation_Analysis.pdf>]
-<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1097, page=2, 597.50829pt x 
+<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1102, page=2, 597.50829pt x 
 845.0471pt>
 File: Pre_Post_Topological_Dislocation_Analysis.pdf Graphic file (type pdf)
 <use Pre_Post_Topological_Dislocation_Analysis.pdf, page 2>
@@ -1456,7 +1456,7 @@ used on input line 159.
 [37
 
  <./Pre_Post_Topological_Dislocation_Analysis.pdf>]
-<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1117, page=3, 597.50829pt x 
+<Pre_Post_Topological_Dislocation_Analysis.pdf, id=1122, page=3, 597.50829pt x 
 845.0471pt>
 File: Pre_Post_Topological_Dislocation_Analysis.pdf Graphic file (type pdf)
 <use Pre_Post_Topological_Dislocation_Analysis.pdf, page 3>
@@ -1478,13 +1478,13 @@ used on input line 159.
 [38
 
  <./Pre_Post_Topological_Dislocation_Analysis.pdf>]
-<Event_Related_Topological_Dynamics.pdf, id=1136, 597.50829pt x 845.0471pt>
+<Event_Related_Topological_Dynamics.pdf, id=1141, 597.50829pt x 845.0471pt>
 File: Event_Related_Topological_Dynamics.pdf Graphic file (type pdf)
 <use Event_Related_Topological_Dynamics.pdf>
 Package pdftex.def Info: Event_Related_Topological_Dynamics.pdf  used on input 
 line 168.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Event_Related_Topological_Dynamics.pdf, id=1138, page=1, 597.50829pt x 845.047
+<Event_Related_Topological_Dynamics.pdf, id=1143, page=1, 597.50829pt x 845.047
 1pt>
 File: Event_Related_Topological_Dynamics.pdf Graphic file (type pdf)
 <use Event_Related_Topological_Dynamics.pdf, page 1>
@@ -1516,7 +1516,7 @@ Package pdftex.def Info: Event_Related_Topological_Dynamics.pdf , page1 used on
 [39
 
  <./Event_Related_Topological_Dynamics.pdf>]
-<Event_Related_Topological_Dynamics.pdf, id=1189, page=2, 597.50829pt x 845.047
+<Event_Related_Topological_Dynamics.pdf, id=1194, page=2, 597.50829pt x 845.047
 1pt>
 File: Event_Related_Topological_Dynamics.pdf Graphic file (type pdf)
 <use Event_Related_Topological_Dynamics.pdf, page 2>
@@ -1538,7 +1538,7 @@ Package pdftex.def Info: Event_Related_Topological_Dynamics.pdf , page2 used on
 [40
 
  <./Event_Related_Topological_Dynamics.pdf>]
-<Event_Related_Topological_Dynamics.pdf, id=1198, page=3, 597.50829pt x 845.047
+<Event_Related_Topological_Dynamics.pdf, id=1203, page=3, 597.50829pt x 845.047
 1pt>
 File: Event_Related_Topological_Dynamics.pdf Graphic file (type pdf)
 <use Event_Related_Topological_Dynamics.pdf, page 3>
@@ -1560,14 +1560,14 @@ Package pdftex.def Info: Event_Related_Topological_Dynamics.pdf , page3 used on
 [41
 
  <./Event_Related_Topological_Dynamics.pdf>]
-<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1229, 597.50829pt x 845.047
+<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1234, 597.50829pt x 845.047
 1pt>
 File: Extended_Time_by_Time_Manifold_Deformation.pdf Graphic file (type pdf)
 <use Extended_Time_by_Time_Manifold_Deformation.pdf>
 Package pdftex.def Info: Extended_Time_by_Time_Manifold_Deformation.pdf  used o
 n input line 170.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1231, page=1, 597.50829pt x
+<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1236, page=1, 597.50829pt x
  845.0471pt>
 File: Extended_Time_by_Time_Manifold_Deformation.pdf Graphic file (type pdf)
 <use Extended_Time_by_Time_Manifold_Deformation.pdf, page 1>
@@ -1599,7 +1599,7 @@ Package pdftex.def Info: Extended_Time_by_Time_Manifold_Deformation.pdf , page1
 [42
 
  <./Extended_Time_by_Time_Manifold_Deformation.pdf>]
-<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1282, page=2, 597.50829pt x
+<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1287, page=2, 597.50829pt x
  845.0471pt>
 File: Extended_Time_by_Time_Manifold_Deformation.pdf Graphic file (type pdf)
 <use Extended_Time_by_Time_Manifold_Deformation.pdf, page 2>
@@ -1621,7 +1621,7 @@ Package pdftex.def Info: Extended_Time_by_Time_Manifold_Deformation.pdf , page2
 [43
 
  <./Extended_Time_by_Time_Manifold_Deformation.pdf>]
-<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1300, page=3, 597.50829pt x
+<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1305, page=3, 597.50829pt x
  845.0471pt>
 File: Extended_Time_by_Time_Manifold_Deformation.pdf Graphic file (type pdf)
 <use Extended_Time_by_Time_Manifold_Deformation.pdf, page 3>
@@ -1643,7 +1643,7 @@ Package pdftex.def Info: Extended_Time_by_Time_Manifold_Deformation.pdf , page3
 [44
 
  <./Extended_Time_by_Time_Manifold_Deformation.pdf>]
-<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1322, page=4, 597.50829pt x
+<Extended_Time_by_Time_Manifold_Deformation.pdf, id=1327, page=4, 597.50829pt x
  845.0471pt>
 File: Extended_Time_by_Time_Manifold_Deformation.pdf Graphic file (type pdf)
 <use Extended_Time_by_Time_Manifold_Deformation.pdf, page 4>
@@ -1665,13 +1665,13 @@ Package pdftex.def Info: Extended_Time_by_Time_Manifold_Deformation.pdf , page4
 [45
 
  <./Extended_Time_by_Time_Manifold_Deformation.pdf>]
-<FDR_Combinatorial_Temporal_Topology.pdf, id=1332, 597.50829pt x 845.0471pt>
+<FDR_Combinatorial_Temporal_Topology.pdf, id=1337, 597.50829pt x 845.0471pt>
 File: FDR_Combinatorial_Temporal_Topology.pdf Graphic file (type pdf)
 <use FDR_Combinatorial_Temporal_Topology.pdf>
 Package pdftex.def Info: FDR_Combinatorial_Temporal_Topology.pdf  used on input
  line 172.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<FDR_Combinatorial_Temporal_Topology.pdf, id=1334, page=1, 597.50829pt x 845.04
+<FDR_Combinatorial_Temporal_Topology.pdf, id=1339, page=1, 597.50829pt x 845.04
 71pt>
 File: FDR_Combinatorial_Temporal_Topology.pdf Graphic file (type pdf)
 <use FDR_Combinatorial_Temporal_Topology.pdf, page 1>
@@ -1703,7 +1703,7 @@ n input line 172.
 [46
 
  <./FDR_Combinatorial_Temporal_Topology.pdf>]
-<FDR_Combinatorial_Temporal_Topology.pdf, id=1382, page=2, 597.50829pt x 845.04
+<FDR_Combinatorial_Temporal_Topology.pdf, id=1387, page=2, 597.50829pt x 845.04
 71pt>
 File: FDR_Combinatorial_Temporal_Topology.pdf Graphic file (type pdf)
 <use FDR_Combinatorial_Temporal_Topology.pdf, page 2>
@@ -1725,7 +1725,7 @@ n input line 172.
 [47
 
  <./FDR_Combinatorial_Temporal_Topology.pdf>]
-<FDR_Combinatorial_Temporal_Topology.pdf, id=1399, page=3, 597.50829pt x 845.04
+<FDR_Combinatorial_Temporal_Topology.pdf, id=1404, page=3, 597.50829pt x 845.04
 71pt>
 File: FDR_Combinatorial_Temporal_Topology.pdf Graphic file (type pdf)
 <use FDR_Combinatorial_Temporal_Topology.pdf, page 3>
@@ -1747,13 +1747,13 @@ n input line 172.
 [48
 
  <./FDR_Combinatorial_Temporal_Topology.pdf>]
-<Out_of_Sample_Topological_Robustness.pdf, id=1425, 597.50829pt x 845.0471pt>
+<Out_of_Sample_Topological_Robustness.pdf, id=1430, 597.50829pt x 845.0471pt>
 File: Out_of_Sample_Topological_Robustness.pdf Graphic file (type pdf)
 <use Out_of_Sample_Topological_Robustness.pdf>
 Package pdftex.def Info: Out_of_Sample_Topological_Robustness.pdf  used on inpu
 t line 174.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Out_of_Sample_Topological_Robustness.pdf, id=1427, page=1, 597.50829pt x 845.0
+<Out_of_Sample_Topological_Robustness.pdf, id=1432, page=1, 597.50829pt x 845.0
 471pt>
 File: Out_of_Sample_Topological_Robustness.pdf Graphic file (type pdf)
 <use Out_of_Sample_Topological_Robustness.pdf, page 1>
@@ -1785,7 +1785,7 @@ on input line 174.
 [49
 
  <./Out_of_Sample_Topological_Robustness.pdf>]
-<Out_of_Sample_Topological_Robustness.pdf, id=1475, page=2, 597.50829pt x 845.0
+<Out_of_Sample_Topological_Robustness.pdf, id=1480, page=2, 597.50829pt x 845.0
 471pt>
 File: Out_of_Sample_Topological_Robustness.pdf Graphic file (type pdf)
 <use Out_of_Sample_Topological_Robustness.pdf, page 2>
@@ -1807,7 +1807,7 @@ on input line 174.
 [50
 
  <./Out_of_Sample_Topological_Robustness.pdf>]
-<Out_of_Sample_Topological_Robustness.pdf, id=1497, page=3, 597.50829pt x 845.0
+<Out_of_Sample_Topological_Robustness.pdf, id=1502, page=3, 597.50829pt x 845.0
 471pt>
 File: Out_of_Sample_Topological_Robustness.pdf Graphic file (type pdf)
 <use Out_of_Sample_Topological_Robustness.pdf, page 3>
@@ -1829,13 +1829,13 @@ on input line 174.
 [51
 
  <./Out_of_Sample_Topological_Robustness.pdf>]
-<Mahalanobis_Empirical_Null_Analysis.pdf, id=1523, 597.50829pt x 845.0471pt>
+<Mahalanobis_Empirical_Null_Analysis.pdf, id=1528, 597.50829pt x 845.0471pt>
 File: Mahalanobis_Empirical_Null_Analysis.pdf Graphic file (type pdf)
 <use Mahalanobis_Empirical_Null_Analysis.pdf>
 Package pdftex.def Info: Mahalanobis_Empirical_Null_Analysis.pdf  used on input
  line 176.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Mahalanobis_Empirical_Null_Analysis.pdf, id=1525, page=1, 597.50829pt x 845.04
+<Mahalanobis_Empirical_Null_Analysis.pdf, id=1530, page=1, 597.50829pt x 845.04
 71pt>
 File: Mahalanobis_Empirical_Null_Analysis.pdf Graphic file (type pdf)
 <use Mahalanobis_Empirical_Null_Analysis.pdf, page 1>
@@ -1867,7 +1867,7 @@ n input line 176.
 [52
 
  <./Mahalanobis_Empirical_Null_Analysis.pdf>]
-<Mahalanobis_Empirical_Null_Analysis.pdf, id=1576, page=2, 597.50829pt x 845.04
+<Mahalanobis_Empirical_Null_Analysis.pdf, id=1581, page=2, 597.50829pt x 845.04
 71pt>
 File: Mahalanobis_Empirical_Null_Analysis.pdf Graphic file (type pdf)
 <use Mahalanobis_Empirical_Null_Analysis.pdf, page 2>
@@ -1889,7 +1889,7 @@ n input line 176.
 [53
 
  <./Mahalanobis_Empirical_Null_Analysis.pdf>]
-<Mahalanobis_Empirical_Null_Analysis.pdf, id=1589, page=3, 597.50829pt x 845.04
+<Mahalanobis_Empirical_Null_Analysis.pdf, id=1594, page=3, 597.50829pt x 845.04
 71pt>
 File: Mahalanobis_Empirical_Null_Analysis.pdf Graphic file (type pdf)
 <use Mahalanobis_Empirical_Null_Analysis.pdf, page 3>
@@ -1911,13 +1911,13 @@ n input line 176.
 [54
 
  <./Mahalanobis_Empirical_Null_Analysis.pdf>]
-<Hierarchical_Geometric_Inference.pdf, id=1623, 597.50829pt x 845.0471pt>
+<Hierarchical_Geometric_Inference.pdf, id=1628, 597.50829pt x 845.0471pt>
 File: Hierarchical_Geometric_Inference.pdf Graphic file (type pdf)
 <use Hierarchical_Geometric_Inference.pdf>
 Package pdftex.def Info: Hierarchical_Geometric_Inference.pdf  used on input li
 ne 178.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Hierarchical_Geometric_Inference.pdf, id=1625, page=1, 597.50829pt x 845.0471p
+<Hierarchical_Geometric_Inference.pdf, id=1630, page=1, 597.50829pt x 845.0471p
 t>
 File: Hierarchical_Geometric_Inference.pdf Graphic file (type pdf)
 <use Hierarchical_Geometric_Inference.pdf, page 1>
@@ -1949,7 +1949,7 @@ nput line 178.
 [55
 
  <./Hierarchical_Geometric_Inference.pdf>]
-<Hierarchical_Geometric_Inference.pdf, id=1690, page=2, 597.50829pt x 845.0471p
+<Hierarchical_Geometric_Inference.pdf, id=1695, page=2, 597.50829pt x 845.0471p
 t>
 File: Hierarchical_Geometric_Inference.pdf Graphic file (type pdf)
 <use Hierarchical_Geometric_Inference.pdf, page 2>
@@ -1971,7 +1971,7 @@ nput line 178.
 [56
 
  <./Hierarchical_Geometric_Inference.pdf>]
-<Hierarchical_Geometric_Inference.pdf, id=1697, page=3, 597.50829pt x 845.0471p
+<Hierarchical_Geometric_Inference.pdf, id=1702, page=3, 597.50829pt x 845.0471p
 t>
 File: Hierarchical_Geometric_Inference.pdf Graphic file (type pdf)
 <use Hierarchical_Geometric_Inference.pdf, page 3>
@@ -1993,13 +1993,13 @@ nput line 178.
 [57
 
  <./Hierarchical_Geometric_Inference.pdf>]
-<Heavy_Tailed_Geometric_Competition.pdf, id=1707, 597.50829pt x 845.0471pt>
+<Heavy_Tailed_Geometric_Competition.pdf, id=1712, 597.50829pt x 845.0471pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf>
 Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf  used on input 
 line 180.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Heavy_Tailed_Geometric_Competition.pdf, id=1709, page=1, 597.50829pt x 845.047
+<Heavy_Tailed_Geometric_Competition.pdf, id=1714, page=1, 597.50829pt x 845.047
 1pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf, page 1>
@@ -2031,7 +2031,7 @@ Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf , page1 used on
 [58
 
  <./Heavy_Tailed_Geometric_Competition.pdf>]
-<Heavy_Tailed_Geometric_Competition.pdf, id=1772, page=2, 597.50829pt x 845.047
+<Heavy_Tailed_Geometric_Competition.pdf, id=1778, page=2, 597.50829pt x 845.047
 1pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf, page 2>
@@ -2053,7 +2053,7 @@ Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf , page2 used on
 [59
 
  <./Heavy_Tailed_Geometric_Competition.pdf>]
-<Heavy_Tailed_Geometric_Competition.pdf, id=1779, page=3, 597.50829pt x 845.047
+<Heavy_Tailed_Geometric_Competition.pdf, id=1784, page=3, 597.50829pt x 845.047
 1pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf, page 3>
@@ -2075,7 +2075,7 @@ Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf , page3 used on
 [60
 
  <./Heavy_Tailed_Geometric_Competition.pdf>]
-<Heavy_Tailed_Geometric_Competition.pdf, id=1789, page=4, 597.50829pt x 845.047
+<Heavy_Tailed_Geometric_Competition.pdf, id=1794, page=4, 597.50829pt x 845.047
 1pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf, page 4>
@@ -2097,7 +2097,7 @@ Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf , page4 used on
 [61
 
  <./Heavy_Tailed_Geometric_Competition.pdf>]
-<Heavy_Tailed_Geometric_Competition.pdf, id=1799, page=5, 597.50829pt x 845.047
+<Heavy_Tailed_Geometric_Competition.pdf, id=1804, page=5, 597.50829pt x 845.047
 1pt>
 File: Heavy_Tailed_Geometric_Competition.pdf Graphic file (type pdf)
 <use Heavy_Tailed_Geometric_Competition.pdf, page 5>
@@ -2119,13 +2119,13 @@ Package pdftex.def Info: Heavy_Tailed_Geometric_Competition.pdf , page5 used on
 [62
 
  <./Heavy_Tailed_Geometric_Competition.pdf>]
-<Parametric_In_Silico_Pause_Simulation.pdf, id=1809, 597.50829pt x 845.0471pt>
+<Parametric_In_Silico_Pause_Simulation.pdf, id=1814, 597.50829pt x 845.0471pt>
 File: Parametric_In_Silico_Pause_Simulation.pdf Graphic file (type pdf)
 <use Parametric_In_Silico_Pause_Simulation.pdf>
 Package pdftex.def Info: Parametric_In_Silico_Pause_Simulation.pdf  used on inp
 ut line 182.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Parametric_In_Silico_Pause_Simulation.pdf, id=1811, page=1, 597.50829pt x 845.
+<Parametric_In_Silico_Pause_Simulation.pdf, id=1816, page=1, 597.50829pt x 845.
 0471pt>
 File: Parametric_In_Silico_Pause_Simulation.pdf Graphic file (type pdf)
 <use Parametric_In_Silico_Pause_Simulation.pdf, page 1>
@@ -2157,7 +2157,7 @@ Package pdftex.def Info: Parametric_In_Silico_Pause_Simulation.pdf , page1 used
 [63
 
  <./Parametric_In_Silico_Pause_Simulation.pdf>]
-<Parametric_In_Silico_Pause_Simulation.pdf, id=1878, page=2, 597.50829pt x 845.
+<Parametric_In_Silico_Pause_Simulation.pdf, id=1883, page=2, 597.50829pt x 845.
 0471pt>
 File: Parametric_In_Silico_Pause_Simulation.pdf Graphic file (type pdf)
 <use Parametric_In_Silico_Pause_Simulation.pdf, page 2>
@@ -2179,7 +2179,7 @@ Package pdftex.def Info: Parametric_In_Silico_Pause_Simulation.pdf , page2 used
 [64
 
  <./Parametric_In_Silico_Pause_Simulation.pdf>]
-<Parametric_In_Silico_Pause_Simulation.pdf, id=1887, page=3, 597.50829pt x 845.
+<Parametric_In_Silico_Pause_Simulation.pdf, id=1892, page=3, 597.50829pt x 845.
 0471pt>
 File: Parametric_In_Silico_Pause_Simulation.pdf Graphic file (type pdf)
 <use Parametric_In_Silico_Pause_Simulation.pdf, page 3>
@@ -2201,13 +2201,13 @@ Package pdftex.def Info: Parametric_In_Silico_Pause_Simulation.pdf , page3 used
 [65
 
  <./Parametric_In_Silico_Pause_Simulation.pdf>]
-<High_Dimensional_Predictive_Benchmark.pdf, id=1901, 597.50829pt x 845.0471pt>
+<High_Dimensional_Predictive_Benchmark.pdf, id=1906, 597.50829pt x 845.0471pt>
 File: High_Dimensional_Predictive_Benchmark.pdf Graphic file (type pdf)
 <use High_Dimensional_Predictive_Benchmark.pdf>
 Package pdftex.def Info: High_Dimensional_Predictive_Benchmark.pdf  used on inp
 ut line 184.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<High_Dimensional_Predictive_Benchmark.pdf, id=1903, page=1, 597.50829pt x 845.
+<High_Dimensional_Predictive_Benchmark.pdf, id=1908, page=1, 597.50829pt x 845.
 0471pt>
 File: High_Dimensional_Predictive_Benchmark.pdf Graphic file (type pdf)
 <use High_Dimensional_Predictive_Benchmark.pdf, page 1>
@@ -2239,7 +2239,7 @@ Package pdftex.def Info: High_Dimensional_Predictive_Benchmark.pdf , page1 used
 [66
 
  <./High_Dimensional_Predictive_Benchmark.pdf>]
-<High_Dimensional_Predictive_Benchmark.pdf, id=1967, page=2, 597.50829pt x 845.
+<High_Dimensional_Predictive_Benchmark.pdf, id=1972, page=2, 597.50829pt x 845.
 0471pt>
 File: High_Dimensional_Predictive_Benchmark.pdf Graphic file (type pdf)
 <use High_Dimensional_Predictive_Benchmark.pdf, page 2>
@@ -2261,7 +2261,7 @@ Package pdftex.def Info: High_Dimensional_Predictive_Benchmark.pdf , page2 used
 [67
 
  <./High_Dimensional_Predictive_Benchmark.pdf>]
-<High_Dimensional_Predictive_Benchmark.pdf, id=1977, page=3, 597.50829pt x 845.
+<High_Dimensional_Predictive_Benchmark.pdf, id=1982, page=3, 597.50829pt x 845.
 0471pt>
 File: High_Dimensional_Predictive_Benchmark.pdf Graphic file (type pdf)
 <use High_Dimensional_Predictive_Benchmark.pdf, page 3>
@@ -2283,13 +2283,13 @@ Package pdftex.def Info: High_Dimensional_Predictive_Benchmark.pdf , page3 used
 [68
 
  <./High_Dimensional_Predictive_Benchmark.pdf>]
-<Monte_Carlo_Dimensional_Scaling.pdf, id=1983, 597.50829pt x 845.0471pt>
+<Monte_Carlo_Dimensional_Scaling.pdf, id=1988, 597.50829pt x 845.0471pt>
 File: Monte_Carlo_Dimensional_Scaling.pdf Graphic file (type pdf)
 <use Monte_Carlo_Dimensional_Scaling.pdf>
 Package pdftex.def Info: Monte_Carlo_Dimensional_Scaling.pdf  used on input lin
 e 186.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Monte_Carlo_Dimensional_Scaling.pdf, id=1985, page=1, 597.50829pt x 845.0471pt
+<Monte_Carlo_Dimensional_Scaling.pdf, id=1990, page=1, 597.50829pt x 845.0471pt
 >
 File: Monte_Carlo_Dimensional_Scaling.pdf Graphic file (type pdf)
 <use Monte_Carlo_Dimensional_Scaling.pdf, page 1>
@@ -2321,7 +2321,7 @@ put line 186.
 [69
 
  <./Monte_Carlo_Dimensional_Scaling.pdf>]
-<Monte_Carlo_Dimensional_Scaling.pdf, id=2044, page=2, 597.50829pt x 845.0471pt
+<Monte_Carlo_Dimensional_Scaling.pdf, id=2049, page=2, 597.50829pt x 845.0471pt
 >
 File: Monte_Carlo_Dimensional_Scaling.pdf Graphic file (type pdf)
 <use Monte_Carlo_Dimensional_Scaling.pdf, page 2>
@@ -2343,7 +2343,7 @@ put line 186.
 [70
 
  <./Monte_Carlo_Dimensional_Scaling.pdf>]
-<Monte_Carlo_Dimensional_Scaling.pdf, id=2053, page=3, 597.50829pt x 845.0471pt
+<Monte_Carlo_Dimensional_Scaling.pdf, id=2058, page=3, 597.50829pt x 845.0471pt
 >
 File: Monte_Carlo_Dimensional_Scaling.pdf Graphic file (type pdf)
 <use Monte_Carlo_Dimensional_Scaling.pdf, page 3>
@@ -2365,13 +2365,13 @@ put line 186.
 [71
 
  <./Monte_Carlo_Dimensional_Scaling.pdf>]
-<Joint_Kinematic_Dimensional_Sweep.pdf, id=2064, 597.50829pt x 845.0471pt>
+<Joint_Kinematic_Dimensional_Sweep.pdf, id=2069, 597.50829pt x 845.0471pt>
 File: Joint_Kinematic_Dimensional_Sweep.pdf Graphic file (type pdf)
 <use Joint_Kinematic_Dimensional_Sweep.pdf>
 Package pdftex.def Info: Joint_Kinematic_Dimensional_Sweep.pdf  used on input l
 ine 188.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Joint_Kinematic_Dimensional_Sweep.pdf, id=2066, page=1, 597.50829pt x 845.0471
+<Joint_Kinematic_Dimensional_Sweep.pdf, id=2071, page=1, 597.50829pt x 845.0471
 pt>
 File: Joint_Kinematic_Dimensional_Sweep.pdf Graphic file (type pdf)
 <use Joint_Kinematic_Dimensional_Sweep.pdf, page 1>
@@ -2403,7 +2403,7 @@ input line 188.
 [72
 
  <./Joint_Kinematic_Dimensional_Sweep.pdf>]
-<Joint_Kinematic_Dimensional_Sweep.pdf, id=2129, page=2, 597.50829pt x 845.0471
+<Joint_Kinematic_Dimensional_Sweep.pdf, id=2134, page=2, 597.50829pt x 845.0471
 pt>
 File: Joint_Kinematic_Dimensional_Sweep.pdf Graphic file (type pdf)
 <use Joint_Kinematic_Dimensional_Sweep.pdf, page 2>
@@ -2425,7 +2425,7 @@ input line 188.
 [73
 
  <./Joint_Kinematic_Dimensional_Sweep.pdf>]
-<Joint_Kinematic_Dimensional_Sweep.pdf, id=2139, page=3, 597.50829pt x 845.0471
+<Joint_Kinematic_Dimensional_Sweep.pdf, id=2144, page=3, 597.50829pt x 845.0471
 pt>
 File: Joint_Kinematic_Dimensional_Sweep.pdf Graphic file (type pdf)
 <use Joint_Kinematic_Dimensional_Sweep.pdf, page 3>
@@ -2447,13 +2447,13 @@ input line 188.
 [74
 
  <./Joint_Kinematic_Dimensional_Sweep.pdf>]
-<Kinematic_Readout_Competition.pdf, id=2149, 597.50829pt x 845.0471pt>
+<Kinematic_Readout_Competition.pdf, id=2154, 597.50829pt x 845.0471pt>
 File: Kinematic_Readout_Competition.pdf Graphic file (type pdf)
 <use Kinematic_Readout_Competition.pdf>
 Package pdftex.def Info: Kinematic_Readout_Competition.pdf  used on input line 
 190.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Kinematic_Readout_Competition.pdf, id=2151, page=1, 597.50829pt x 845.0471pt>
+<Kinematic_Readout_Competition.pdf, id=2156, page=1, 597.50829pt x 845.0471pt>
 File: Kinematic_Readout_Competition.pdf Graphic file (type pdf)
 <use Kinematic_Readout_Competition.pdf, page 1>
 Package pdftex.def Info: Kinematic_Readout_Competition.pdf , page1 used on inpu
@@ -2484,7 +2484,7 @@ t line 190.
 [75
 
  <./Kinematic_Readout_Competition.pdf>]
-<Kinematic_Readout_Competition.pdf, id=2219, page=2, 597.50829pt x 845.0471pt>
+<Kinematic_Readout_Competition.pdf, id=2224, page=2, 597.50829pt x 845.0471pt>
 File: Kinematic_Readout_Competition.pdf Graphic file (type pdf)
 <use Kinematic_Readout_Competition.pdf, page 2>
 Package pdftex.def Info: Kinematic_Readout_Competition.pdf , page2 used on inpu
@@ -2505,7 +2505,7 @@ t line 190.
 [76
 
  <./Kinematic_Readout_Competition.pdf>]
-<Kinematic_Readout_Competition.pdf, id=2225, page=3, 597.50829pt x 845.0471pt>
+<Kinematic_Readout_Competition.pdf, id=2230, page=3, 597.50829pt x 845.0471pt>
 File: Kinematic_Readout_Competition.pdf Graphic file (type pdf)
 <use Kinematic_Readout_Competition.pdf, page 3>
 Package pdftex.def Info: Kinematic_Readout_Competition.pdf , page3 used on inpu
@@ -2526,7 +2526,7 @@ t line 190.
 [77
 
  <./Kinematic_Readout_Competition.pdf>]
-<Kinematic_Readout_Competition.pdf, id=2234, page=4, 597.50829pt x 845.0471pt>
+<Kinematic_Readout_Competition.pdf, id=2239, page=4, 597.50829pt x 845.0471pt>
 File: Kinematic_Readout_Competition.pdf Graphic file (type pdf)
 <use Kinematic_Readout_Competition.pdf, page 4>
 Package pdftex.def Info: Kinematic_Readout_Competition.pdf , page4 used on inpu
@@ -2547,13 +2547,13 @@ t line 190.
 [78
 
  <./Kinematic_Readout_Competition.pdf>]
-<Tripartite_Kinematic_Upgrade.pdf, id=2240, 597.50829pt x 845.0471pt>
+<Tripartite_Kinematic_Upgrade.pdf, id=2245, 597.50829pt x 845.0471pt>
 File: Tripartite_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Tripartite_Kinematic_Upgrade.pdf>
 Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf  used on input line 1
 92.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Tripartite_Kinematic_Upgrade.pdf, id=2242, page=1, 597.50829pt x 845.0471pt>
+<Tripartite_Kinematic_Upgrade.pdf, id=2247, page=1, 597.50829pt x 845.0471pt>
 File: Tripartite_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Tripartite_Kinematic_Upgrade.pdf, page 1>
 Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page1 used on input
@@ -2584,7 +2584,7 @@ Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page1 used on input
 [79
 
  <./Tripartite_Kinematic_Upgrade.pdf>]
-<Tripartite_Kinematic_Upgrade.pdf, id=2310, page=2, 597.50829pt x 845.0471pt>
+<Tripartite_Kinematic_Upgrade.pdf, id=2315, page=2, 597.50829pt x 845.0471pt>
 File: Tripartite_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Tripartite_Kinematic_Upgrade.pdf, page 2>
 Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page2 used on input
@@ -2605,7 +2605,7 @@ Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page2 used on input
 [80
 
  <./Tripartite_Kinematic_Upgrade.pdf>]
-<Tripartite_Kinematic_Upgrade.pdf, id=2316, page=3, 597.50829pt x 845.0471pt>
+<Tripartite_Kinematic_Upgrade.pdf, id=2321, page=3, 597.50829pt x 845.0471pt>
 File: Tripartite_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Tripartite_Kinematic_Upgrade.pdf, page 3>
 Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page3 used on input
@@ -2626,7 +2626,7 @@ Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page3 used on input
 [81
 
  <./Tripartite_Kinematic_Upgrade.pdf>]
-<Tripartite_Kinematic_Upgrade.pdf, id=2325, page=4, 597.50829pt x 845.0471pt>
+<Tripartite_Kinematic_Upgrade.pdf, id=2330, page=4, 597.50829pt x 845.0471pt>
 File: Tripartite_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Tripartite_Kinematic_Upgrade.pdf, page 4>
 Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page4 used on input
@@ -2647,13 +2647,13 @@ Package pdftex.def Info: Tripartite_Kinematic_Upgrade.pdf , page4 used on input
 [82
 
  <./Tripartite_Kinematic_Upgrade.pdf>]
-<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2331, 597.50829pt x 845.0471pt>
+<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2336, 597.50829pt x 845.0471pt>
 File: Empirical_Gamma_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Empirical_Gamma_Kinematic_Upgrade.pdf>
 Package pdftex.def Info: Empirical_Gamma_Kinematic_Upgrade.pdf  used on input l
 ine 194.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2333, page=1, 597.50829pt x 845.0471
+<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2338, page=1, 597.50829pt x 845.0471
 pt>
 File: Empirical_Gamma_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Empirical_Gamma_Kinematic_Upgrade.pdf, page 1>
@@ -2685,7 +2685,7 @@ input line 194.
 [83
 
  <./Empirical_Gamma_Kinematic_Upgrade.pdf>]
-<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2401, page=2, 597.50829pt x 845.0471
+<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2406, page=2, 597.50829pt x 845.0471
 pt>
 File: Empirical_Gamma_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Empirical_Gamma_Kinematic_Upgrade.pdf, page 2>
@@ -2707,7 +2707,7 @@ input line 194.
 [84
 
  <./Empirical_Gamma_Kinematic_Upgrade.pdf>]
-<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2407, page=3, 597.50829pt x 845.0471
+<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2412, page=3, 597.50829pt x 845.0471
 pt>
 File: Empirical_Gamma_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Empirical_Gamma_Kinematic_Upgrade.pdf, page 3>
@@ -2729,7 +2729,7 @@ input line 194.
 [85
 
  <./Empirical_Gamma_Kinematic_Upgrade.pdf>]
-<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2417, page=4, 597.50829pt x 845.0471
+<Empirical_Gamma_Kinematic_Upgrade.pdf, id=2422, page=4, 597.50829pt x 845.0471
 pt>
 File: Empirical_Gamma_Kinematic_Upgrade.pdf Graphic file (type pdf)
 <use Empirical_Gamma_Kinematic_Upgrade.pdf, page 4>
@@ -2751,13 +2751,13 @@ input line 194.
 [86
 
  <./Empirical_Gamma_Kinematic_Upgrade.pdf>]
-<High_Correlation_Kinematic_Search.pdf, id=2423, 597.50829pt x 845.0471pt>
+<High_Correlation_Kinematic_Search.pdf, id=2428, 597.50829pt x 845.0471pt>
 File: High_Correlation_Kinematic_Search.pdf Graphic file (type pdf)
 <use High_Correlation_Kinematic_Search.pdf>
 Package pdftex.def Info: High_Correlation_Kinematic_Search.pdf  used on input l
 ine 196.
 (pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
-<High_Correlation_Kinematic_Search.pdf, id=2425, page=1, 597.50829pt x 845.0471
+<High_Correlation_Kinematic_Search.pdf, id=2430, page=1, 597.50829pt x 845.0471
 pt>
 File: High_Correlation_Kinematic_Search.pdf Graphic file (type pdf)
 <use High_Correlation_Kinematic_Search.pdf, page 1>
@@ -2789,7 +2789,7 @@ input line 196.
 [87
 
  <./High_Correlation_Kinematic_Search.pdf>]
-<High_Correlation_Kinematic_Search.pdf, id=2484, page=2, 597.50829pt x 845.0471
+<High_Correlation_Kinematic_Search.pdf, id=2490, page=2, 597.50829pt x 845.0471
 pt>
 File: High_Correlation_Kinematic_Search.pdf Graphic file (type pdf)
 <use High_Correlation_Kinematic_Search.pdf, page 2>
@@ -2811,7 +2811,7 @@ input line 196.
 [88
 
  <./High_Correlation_Kinematic_Search.pdf>]
-<High_Correlation_Kinematic_Search.pdf, id=2492, page=3, 597.50829pt x 845.0471
+<High_Correlation_Kinematic_Search.pdf, id=2497, page=3, 597.50829pt x 845.0471
 pt>
 File: High_Correlation_Kinematic_Search.pdf Graphic file (type pdf)
 <use High_Correlation_Kinematic_Search.pdf, page 3>
@@ -2832,19 +2832,77 @@ input line 196.
 (pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
 [89
 
- <./High_Correlation_Kinematic_Search.pdf>] (./read_output.aux)
+ <./High_Correlation_Kinematic_Search.pdf>]
+<Static_MLI_Kinematic_Decoding.pdf, id=2503, 597.50829pt x 845.0471pt>
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf  used on input line 
+198.
+(pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
+<Static_MLI_Kinematic_Decoding.pdf, id=2505, page=1, 597.50829pt x 845.0471pt>
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 1>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page1 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.50682pt x 845.04504pt.
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 1>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page1 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 1>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page1 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 1>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page1 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+
+
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 1>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page1 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+[90
+
+ <./Static_MLI_Kinematic_Decoding.pdf>]
+<Static_MLI_Kinematic_Decoding.pdf, id=2572, page=2, 597.50829pt x 845.0471pt>
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 2>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page2 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 2>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page2 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+
+
+File: Static_MLI_Kinematic_Decoding.pdf Graphic file (type pdf)
+<use Static_MLI_Kinematic_Decoding.pdf, page 2>
+Package pdftex.def Info: Static_MLI_Kinematic_Decoding.pdf , page2 used on inpu
+t line 198.
+(pdftex.def)             Requested size: 597.53416pt x 845.08372pt.
+[91
+
+ <./Static_MLI_Kinematic_Decoding.pdf>] (./read_output.aux)
  ***********
 LaTeX2e <2024-11-01> patch level 2
 L3 programming layer <2025-04-29>
  ***********
 Package rerunfilecheck Info: File `read_output.out' has not changed.
-(rerunfilecheck)             Checksum: 081D3700781337E6F508CF67F414952A;11432.
+(rerunfilecheck)             Checksum: 79D5092346A5EE8B5BE75E6C667EA3C8;11795.
  ) 
 Here is how much of TeX's memory you used:
- 12994 strings out of 469590
- 217914 string characters out of 5474513
- 608226 words of memory out of 5000000
- 39468 multiletter control sequences out of 15000+600000
+ 13016 strings out of 469590
+ 218730 string characters out of 5474513
+ 608317 words of memory out of 5000000
+ 39485 multiletter control sequences out of 15000+600000
  637659 words of font info for 82 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
  75i,17n,79p,671b,593s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -2873,10 +2931,10 @@ tt10.pfb><c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt12.pfb>
 <c:/texlive/2025/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt9.pfb><c:/texliv
 e/2025/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb><c:/texlive/20
 25/texmf-dist/fonts/type1/public/cm-super/sfrm1095.pfb>
-Output written on read_output.pdf (89 pages, 13683729 bytes).
+Output written on read_output.pdf (91 pages, 14222996 bytes).
 PDF statistics:
- 2592 PDF objects out of 2984 (max. 8388607)
- 1873 compressed objects within 19 object streams
- 209 named destinations out of 1000 (max. 500000)
- 914 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 2676 PDF objects out of 2984 (max. 8388607)
+ 1934 compressed objects within 20 object streams
+ 214 named destinations out of 1000 (max. 500000)
+ 942 words of extra memory for PDF output out of 10000 (max. 10000000)
 
