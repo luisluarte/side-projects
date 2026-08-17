@@ -28,3 +28,4 @@
 \contentsline {subsection}{\numberline {1.23}\ignorespaces Kinematic Readout Competition: Scalar Entropy vs. High-Dimensional Ridge}{75}{subsection.1.23}%
 \contentsline {subsection}{\numberline {1.24}\ignorespaces Tripartite Kinematic Upgrade \& Sparse Microzone Selection}{79}{subsection.1.24}%
 \contentsline {subsection}{\numberline {1.25}\ignorespaces Empirical Sensory Feedback \& Gamma Kinematic Optimization}{83}{subsection.1.25}%
+\contentsline {subsection}{\numberline {1.26}\ignorespaces Automated Biological Search for High-Correlation Kinematic Decoding}{87}{subsection.1.26}%
