@@ -39,3 +39,4 @@
 \contentsline {subsection}{\numberline {1.34}\ignorespaces Topological HDDM Mechanistic Explanation \& Logic}{106}{subsection.1.34}%
 \contentsline {subsection}{\numberline {1.35}\ignorespaces Topologically-Gated Symplectic-HDDM 5-Way Empirical Stochastic Tournament}{109}{subsection.1.35}%
 \contentsline {subsection}{\numberline {1.36}\ignorespaces Temporal Topologically-Gated HDDM: 10D Mossy Fiber Expansion \& PR-AUC Switch Benchmark}{113}{subsection.1.36}%
+\contentsline {subsection}{\numberline {1.37}\ignorespaces Task Proposal: Joint Optimization of the Temporal Topo-HDDM}{117}{subsection.1.37}%

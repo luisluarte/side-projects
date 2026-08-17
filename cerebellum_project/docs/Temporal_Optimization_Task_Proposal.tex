@@ -1,0 +1,56 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\geometry{margin=1in}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{titlesec}
+\usepackage{booktabs}
+
+\titleformat{\section}{\large\bfseries\color{blue!60!black}}{\thesection}{1em}{}
+\titleformat{\subsection}{\normalsize\bfseries\color{gray!80!black}}{\thesubsection}{1em}{}
+
+\begin{document}
+
+\begin{center}
+    \LARGE \textbf{Task Proposal: Joint Optimization of the Temporal Topo-HDDM} \\[0.5em]
+    \large Resolving the CMA-ES Parameter Discrepancy via Out-of-Sample LOOCV
+\end{center}
+
+\vspace{1em}
+
+\section{1. Diagnosis of the Performance Plateau}
+
+In the recent stochastic tournament, the \textbf{Temporal Topologically-Gated HDDM} achieved a PR-AUC of 0.5464. While this decisively outperformed the Win-Stay/Lose-Shift (WSLS) baseline, the improvement was artificially bottlenecked. A rigorous architectural review reveals the primary cause: \textbf{The models were not properly re-fitted, and the generalization logic was disjointed.}
+
+\subsection{The CMA-ES Discrepancy}
+The previous pipeline loaded the 10 microcircuit parameters directly from a pre-computed matrix originally optimized for the \textit{discrete 4-dimensional} model. When the Granule Cell layer was expanded to receive continuous 10-dimensional temporal inputs, the geometric topology shifted dramatically. Using legacy parameters drastically bottlenecked the representational capacity of the temporal manifold.
+
+\subsection{The DDM Fitting Discrepancy}
+The 5-parameter cortical Drift-Diffusion readout ($\mathbf{p}$) was fit using a post-hoc Quasi-Newton \texttt{L-BFGS-B} routine in R. Because the cerebellar plasticity dynamics and the DDM boundary dynamics were not jointly optimized, the model could not effectively coordinate DCN burst magnitude with the decision boundary collapse.
+
+\section{2. Proposed New Task Methodology: LOOCV Generalization}
+
+To achieve definitive proof of the model's superiority, we must evaluate its true out-of-sample generalization. We propose a \textbf{Focused 3-Way Optimization Tournament} executing a rigorous \textbf{Leave-One-Out Cross-Validation (LOOCV)} methodology.
+
+\subsection{The Competitors}
+To maximize computational allocation toward the complex optimization surface, we will restrict the tournament to the three most critical models:
+\begin{enumerate}
+    \item \textbf{Model 1: WSLS-HDDM (Markovian)} -- The classical heuristic baseline.
+    \item \textbf{Model 2: RW-CF-HDDM} -- The standard value-tracking reinforcement learning model.
+    \item \textbf{Model 3: Temporal Topo-HDDM (10D)} -- The proposed fully-optimized high-dimensional cerebellar model.
+\end{enumerate}
+
+\subsection{The LOOCV Joint Procedure Across All Competitors}
+To ensure a mathematically rigorous and structurally fair comparison, the exact same LOOCV methodology will be applied to \textbf{all three models}. We will execute $N=128$ LOOCV folds. For each target held-out subject $i$:
+\begin{enumerate}
+    \item \textbf{Training Phase ($N-1$ Participants):} We combine the behavioral data of the 127 training subjects. For the Temporal Topo-HDDM, we deploy CMA-ES to search the 15-dimensional space ($\Phi \in \mathbb{R}^{15}$). For the WSLS-HDDM and RW-CF-HDDM baselines, we optimize their respective parameter spaces (e.g., learning rates, DDM readouts) using the identical objective function.
+    \item \textbf{Objective Function:} The optimizer minimizes the summed Negative Log-Likelihood of the joint continuous Wiener first-passage time density across all trials of the 127 training subjects.
+    \item \textbf{Parameter Generalization Translation:} The resulting optimized parameter vector $\Phi_{\text{train}}^{(i)}$ represents the universal constants that best explain the human population (excluding subject $i$).
+    \item \textbf{Strict Out-of-Sample Evaluation:} We instantiate the given model (WSLS, RW-CF, or Temporal Topo-HDDM) for the held-out subject $i$ using exactly $\Phi_{\text{train}}^{(i)}$. \textbf{There are absolutely no free parameters fitted to the test subject.} We then record the out-of-sample Choice Accuracy, Predictive Deviance, RT quantiles, and PR-AUC.
+\end{enumerate}
+
+By applying universal population-derived parameters to an unseen individual, this LOOCV architecture guarantees that any performance advantage over WSLS or RW-CF is derived purely from the geometric superiority of the 10-dimensional temporal manifold, completely immune to over-fitting.
+
+\end{document}
