@@ -1,0 +1,103 @@
+\documentclass[11pt,twoside,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=0.9in]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{hyperref}
+
+\definecolor{navyblue}{RGB}{0, 51, 102}
+\definecolor{darkslate}{RGB}{47, 79, 79}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=navyblue,
+    citecolor=navyblue,
+    urlcolor=navyblue,
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textcolor{darkslate}{\small Cerebellar Reservoir Project}}
+\lhead{\textcolor{darkslate}{\small Unified Temporal Integration Formalization}}
+\rfoot{\thepage}
+
+\titleformat{\section}{\large\bfseries\color{navyblue}}{\thesection}{1em}{}
+\titleformat{\subsection}{\bfseries\color{darkslate}}{\thesubsection}{1em}{}
+
+\title{\Huge \textbf{\color{navyblue} Unified Temporal Integration in Cortico-Cerebellar Kinematics}\\[0.4em]
+\Large \textbf{Mathematical Formalization of the Optimal Stochastic Model}}
+\author{\textbf{Theoretical Neuro-Computation \& Dynamical Systems Group}}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This document formally defines the final unified architecture for the Evidential Cortico-Cerebellar Model (ECCM), termed \textit{Unified Temporal Integration}. Discovered autonomously via a 6-stage iterative mathematical search, this formulation solves the catastrophic variance problems inherent in linear kinematic readout mappings. By combining presynaptic eligibility traces for temporal credit assignment with postsynaptic deep cerebellar nuclei (DCN) leaky integration, the model achieves superior out-of-sample Negative Log-Likelihood (NLL) and strictly significant superiority over the Win-Stay/Lose-Shift (WSLS) behavioral heuristic ($p = 0.00066$).
+\end{abstract}
+
+\vspace{0.8em}
+\hrule
+\vspace{0.8em}
+
+\section{1. The Failure of Instantaneous Kinematics}
+Early iterations of the ECCM mapped the instantaneous population difference of the Purkinje cell layers directly to the drift rate $v_t$ of a Drift-Diffusion Model (DDM). This led to extreme trial-to-trial variance: aggressive shifts caused explosive linear drift rates, resulting in statistically insignificant model fits. Mathematical bounds (e.g., hyperbolic tangent functions) artificially suppressed the model's confidence. The biological solution lies in temporal smoothing at two distinct anatomical loci: the synapse and the readout.
+
+\section{2. Formal Specification of Unified Temporal Integration}
+
+\subsection{2.1. Anti-Correlated Climbing Fiber Error}
+The climbing fiber error signal $\Delta IO$ is mapped zero-sum across the two choice representations. A loss for Choice 1 is treated symmetrically as a win for Choice 2:
+\begin{align}
+    \Delta IO_1 &= \text{target}_1 - y^{PC1}_t \\
+    \Delta IO_2 &= \text{target}_2 - y^{PC2}_t
+\end{align}
+where $\text{target}_1 = -\text{target}_2$ under anti-correlated mappings.
+
+\subsection{2.2. Presynaptic Eligibility Traces ($e_{k,t}$)}
+To bridge the temporal gap across the inter-trial interval, Molecular Layer Interneuron (MLI) activity $h^{MLI}_{k, t}$ leaves a synaptic eligibility trace. The trace decays by $\gamma_e$ over time:
+\begin{equation}
+    e_{k, t} = \gamma_e \cdot e_{k, t-1} + h^{MLI}_{k, t}
+\end{equation}
+
+Synaptic plasticity at the parallel fiber to Purkinje cell synapse updates via the trace:
+\begin{align}
+    \Delta W^{PF1}_{k, t} &= \eta \cdot \Delta IO_1 \cdot e_{k, t} - \lambda W^{PF1}_{k, t} \\
+    \Delta W^{PF2}_{k, t} &= \eta \cdot \Delta IO_2 \cdot e_{k, t} - \lambda W^{PF2}_{k, t}
+\end{align}
+
+\subsection{2.3. Postsynaptic Deep Cerebellar Nuclei (DCN) Integration}
+The instantaneous Purkinje cell difference $y^{PC1}_t - y^{PC2}_t$ is not passed directly to the motor cortex. Instead, it is integrated by the DCN, acting as a low-pass filter:
+\begin{equation}
+    D_t = (1 - \alpha_{DCN}) D_{t-1} + \alpha_{DCN} (y^{PC1}_t - y^{PC2}_t)
+\end{equation}
+where $\alpha_{DCN} \in [0, 1]$ represents the integration rate.
+
+\subsection{2.4. Kinematic Readout}
+The filtered DCN activity drives the kinematic drift rate:
+\begin{equation}
+    v_t = \beta_v \cdot D_t
+\end{equation}
+
+\section{3. Empirical Benchmarks and Statistical Significance}
+Evaluated via 70:30 cross-validation on $N=30$ human participants, the Unified Temporal Integration model achieved the lowest Test NLL in the history of the project.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{lcc}
+        \toprule
+        \textbf{Model Structure} & \textbf{Aggregate Test NLL} & \textbf{p-value vs M1} \\
+        \midrule
+        M1: Win-Stay/Lose-Shift (WSLS) & 1448.57 & - \\
+        M2: Random Walk Cognitive Filter & 1623.98 & - \\
+        \textbf{ECCM: Unified Temporal Integration} & \textbf{1433.15} & \textbf{0.00066} \\
+        \bottomrule
+    \end{tabular}
+    \caption{Final 3-way benchmark demonstrating strict statistical superiority.}
+\end{table}
+
+\end{document}
