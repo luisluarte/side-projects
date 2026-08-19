@@ -125,14 +125,14 @@ List precompute_temporal_topological_tournament_cpp(
   double V_prev_m3 = 0.0;
   double Q_val_m3[2] = {0.50, 0.50};
 
-  // Model 4 State Variables (10D Temporal Reservoir)
+  // Model 4 State Variables (Temporal Reservoir)
   std::vector<double> z_GC_prev_m4(N_GC, 0.0);
   std::vector<double> z_GC_curr_m4(N_GC, 0.0);
   std::vector<double> z_GoC_m4(N_GoC, 0.0);
   std::vector<double> h_MLI_m4(N_MLI, 0.0);
   std::vector<double> w_v_m4(N_GC, 0.10);
-  std::vector<std::vector<double>> W_pi_m4(N_actions, std::vector<double>(N_GC, 0.10));
-  std::vector<std::vector<double>> W_inh_m4(N_actions, std::vector<double>(N_MLI, 0.05));
+  std::vector<std::vector<double>> W_pi_m4(N_actions, std::vector<double>(N_GC, 0.0));
+  std::vector<std::vector<double>> W_inh_m4(N_actions, std::vector<double>(N_MLI, 0.0));
   double b_v_m4 = 0.50;
   double V_prev_m4 = 0.0;
   double Q_val_m4[2] = {0.50, 0.50};
@@ -163,6 +163,9 @@ List precompute_temporal_topological_tournament_cpp(
   // Sliding window of state history for capacity tracking
   int window_size = 4;
   std::vector<std::vector<double>> history_GC_m4;
+
+  double lambda_decay = 0.01; // L2 Ridge Regularization
+  double eta_learning = 0.05; // Base gradient scale
 
   double running_streak = 0.0;
   double running_reward_rate = 0.50;
@@ -302,17 +305,14 @@ List precompute_temporal_topological_tournament_cpp(
     z_GC_prev_m3 = z_GC_curr_m3;
     V_prev_m3 = V_curr_m3;
 
-    // --- MODEL 4: 10-D TEMPORAL MOSSY FIBER RESERVOIR ---
-    double u_arr_10d[10] = {
+    // --- MODEL 4: TEMPORAL MOSSY FIBER RESERVOIR (Observables Only) ---
+    // Strict compliance: only observable sensorimotor delays and positions
+    double u_arr_6d[6] = {
       (prev_ch == 1) ? 1.0 : -1.0,
       (double)prev_out,
       d_curr,
       d_diff,
       clamp_val((prev_rt - 0.75) / 0.50, -2.0, 2.0),
-      clamp_val((prev_ttf - 2.00) / 1.00, -2.0, 2.0),
-      clamp_val((prev_iti - 7.00) / 3.00, -2.0, 2.0),
-      clamp_val(running_streak / 4.0, -2.0, 2.0),
-      clamp_val((running_reward_rate - 0.50) / 0.30, -2.0, 2.0),
       clamp_val(std::log(1.0 + prev_iti) - 1.5, -2.0, 2.0)
     };
 
@@ -320,7 +320,7 @@ List precompute_temporal_topological_tournament_cpp(
     for (int i = 0; i < N_GC; ++i) {
       double input_i = 0.0;
       for (int k = 0; k < 4; ++k) {
-        input_i += gc_mossy_weights[i][k] * u_arr_10d[gc_mossy_map[i][k]];
+        input_i += gc_mossy_weights[i][k] * u_arr_6d[gc_mossy_map[i][k]];
       }
       double gamma_i = rho_vec[i] + (1.0 - rho_vec[i]) * std::exp(-delta_t / tau_vec[i]);
       h_pre_m4[i] = std::tanh(input_i + gamma_i * z_GC_prev_m4[i]);
@@ -344,7 +344,7 @@ List precompute_temporal_topological_tournament_cpp(
       h_MLI_m4[m] = std::max(0.0, mli_drive - 0.05);
     }
 
-    // Spatial Entropy and Symplectic Persistence on 10D Manifold
+    // Spatial Entropy and Symplectic Persistence
     double l1_sum_m4 = 1e-12;
     for (int i = 0; i < N_GC; ++i) l1_sum_m4 += std::abs(z_GC_curr_m4[i]);
     double S_t_m4 = 0.0;
@@ -406,32 +406,30 @@ List precompute_temporal_topological_tournament_cpp(
     v_delib_m4_vec[t] = 0.55 * q_diff_m4 + 0.35 * (gc_policy_diff_m4 - mli_policy_diff_m4);
     v_heur_m4_vec[t]  = logit_bias;
 
-    // LC Salience
-    double V_curr_m4 = b_v_m4;
-    for (int i = 0; i < N_GC; ++i) V_curr_m4 += w_v_m4[i] * z_GC_curr_m4[i];
-    double delta_rpe_m4 = (double)out - V_curr_m4;
-    lc_weight_vec[t] = 1.0 + 0.50 * std::log(1.0 + delta_t) + 0.50 * std::abs(delta_rpe_m4);
-
-    // Multiplicative Plasticity for Model 4
-    double Omega_t_m4 = std::exp(-kappa_entropy * S_t_m4);
-    double p_ch1_m4 = 1.0 / (1.0 + std::exp(-(logit_bias + v_delib_m4_vec[t])));
-    double p_chosen_m4 = (ch == 1) ? p_ch1_m4 : (1.0 - p_ch1_m4);
-    p_chosen_m4 = clamp_val(p_chosen_m4, 1e-6, 1.0 - 1e-6);
-
+    // IO Error for L2 Ridge Updates
+    double y_PC1 = 0.0, y_PC2 = 0.0;
     for (int i = 0; i < N_GC; ++i) {
-      w_v_m4[i] *= std::exp(clamp_val(0.05 * lr_scale * Omega_t_m4 * delta_rpe_m4 * z_GC_curr_m4[i], -1.0, 1.0));
-      int a_idx = (ch == 1) ? 0 : 1;
-      W_pi_m4[a_idx][i] *= std::exp(clamp_val(0.05 * lr_scale * Omega_t_m4 * delta_rpe_m4 * (1.0 - p_chosen_m4) * z_GC_curr_m4[i], -1.0, 1.0));
+        y_PC1 += W_pi_m4[0][i] * z_GC_curr_m4[i];
+        y_PC2 += W_pi_m4[1][i] * z_GC_curr_m4[i];
     }
-    for (int m = 0; m < N_MLI; ++m) {
-      int a_idx = (ch == 1) ? 0 : 1;
-      W_inh_m4[a_idx][m] *= std::exp(clamp_val(0.02 * lr_scale * Omega_t_m4 * delta_rpe_m4 * (1.0 - p_chosen_m4) * h_MLI_m4[m], -1.0, 1.0));
+    double IO_error = ((double)out - 0.5) * 2.0 - ((ch == 1) ? y_PC1 : y_PC2);
+
+    // LC Salience (driven by IO error and inter-trial delay)
+    lc_weight_vec[t] = 1.0 + 0.50 * std::log(1.0 + delta_t) + 0.50 * std::abs(IO_error);
+
+    // MODEL 4: Strict Asymmetric L2 Homeostatic Delta Rule
+    for (int i = 0; i < N_GC; ++i) {
+      if (ch == 1) {
+          W_pi_m4[0][i] += eta_learning * IO_error * z_GC_prev_m4[i] - lambda_decay * W_pi_m4[0][i];
+      } else {
+          W_pi_m4[1][i] += eta_learning * IO_error * z_GC_prev_m4[i] - lambda_decay * W_pi_m4[1][i];
+      }
     }
-    b_v_m4 *= std::exp(clamp_val(0.02 * Omega_t_m4 * delta_rpe_m4, -0.2, 0.2));
+    
     Q_val_m4[ch - 1] += alpha_q * ((double)out - Q_val_m4[ch - 1]);
 
     z_GC_prev_m4 = z_GC_curr_m4;
-    V_prev_m4 = V_curr_m4;
+    V_prev_m4 = b_v_m4;
   }
 
   return List::create(

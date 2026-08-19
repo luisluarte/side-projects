@@ -1,0 +1,36 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage{booktabs}
+\usepackage{geometry}
+\geometry{margin=1in}
+
+\title{Phase 2 Calibration Report: Hierarchical Bayesian Evaluation ($N=10$)}
+\author{Antigravity AI Pipeline}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{Hierarchical Curvature-Penalized Likelihood}
+The custom MCMC evaluated the structural deviance trajectory over time, penalizing models that fail to achieve a stationary equilibrium (temporal slope $m_D$). 
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{WSLS} & \textbf{CFMR} & \textbf{ECCM Mixed Model} \\
+\midrule
+\textbf{Mean Penalized Deviance} & 1982.59 & 2016.71 & \textbf{2000.38} \\
+\textbf{95\% HDI} & [1966.04, 2001.34] & [2000.10, 2033.12] & \textbf{[1980.56, 2022.59]} \\
+\textbf{McFadden Pseudo-$R^2$} & -0.200 & -0.220 & \textbf{-0.211} \\
+\bottomrule
+\end{tabular}
+\caption{Central Tendencies and Highest Density Intervals for the Calibration cohort.}
+\end{table}
+
+\section{Conclusion and Phase Gating}
+The WSLS baseline model achieved the lowest penalized deviance (1982.59) and highest McFadden $R^2$ (-0.200), strictly defeating the ECCM Mixed Model (2000.38, -0.211). 
+
+\textbf{TRIGGERING PHASE 3:} Pursuant to the Phase Gating protocol, because the ECCM Mixed Model ranked lower than a competing baseline, we must HALT Asymptotic Scaling. The pipeline now enters \textbf{Phase 3: Diagnostic Iteration}. We will compute the auto-covariance of the temporal prediction errors and project the scalar residuals back onto the $N_{GC}$ granular layer to deduce the topological failure mathematically.
+\end{document}
+
