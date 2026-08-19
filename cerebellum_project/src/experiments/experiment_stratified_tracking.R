@@ -9,7 +9,7 @@ dat_all <- read.csv(dataset_path)
 set.seed(42)
 participants <- sample(unique(dat_all[['participant_id']]), 30)
 
-sourceCpp("src/cpp/topology_extractor.cpp")
+sourceCpp("src/models/topology_extractor.cpp")
 phi_test <- c(log(2.0), log(0.3/0.7), log(3.0), log(0.5/0.5), log(0.5/0.5), 0.5)
 
 pause_summary <- data.frame(Participant=character(), Total_Pauses=integer(), Group_A=integer(), Group_B=integer(), stringsAsFactors=FALSE)

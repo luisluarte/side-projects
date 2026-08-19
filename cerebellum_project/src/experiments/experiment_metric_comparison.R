@@ -7,7 +7,7 @@ dat_all <- read.csv(dataset_path)
 
 participants <- unique(dat_all[['participant_id']])
 
-sourceCpp("src/cpp/evaluate_metrics.cpp")
+sourceCpp("src/models/evaluate_metrics.cpp")
 
 phi_test <- c(log(2.0), log(0.3/0.7), log(3.0), log(0.5/0.5), log(0.5/0.5), 0.5)
 
