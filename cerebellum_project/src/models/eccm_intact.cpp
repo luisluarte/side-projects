@@ -5,8 +5,14 @@ using namespace Rcpp;
 
 // [[Rcpp::export]]
 double eval_eccm_intact(const std::vector<double>& phi, const IntegerVector& resp, const IntegerVector& out, const NumericVector& rt) {
+    // a = decision boundary
+    // t_nd = non-decision time
+    // beta_v = drift rate
     double a = std::exp(phi[0]), t_nd = 1.0 / (1.0 + std::exp(-phi[1])), beta_v = std::exp(phi[2]);
+    // eta_LTP = assymentric update when R^(t) = +1
+    // eta_LTD = assymentric update when R^(t) = -1
     double eta_LTP = 1.0 / (1.0 + std::exp(-phi[3])), eta_LTD = 1.0 / (1.0 + std::exp(-phi[4])), w_cb = phi[5]; 
+    // cerebellar dimension
     int k = 80; int N_MF = 160, N_GC = 1024, N_MLI = 256;
     
     std::vector<double> W_PF1(N_GC, 0.0), W_PF2(N_GC, 0.0);
