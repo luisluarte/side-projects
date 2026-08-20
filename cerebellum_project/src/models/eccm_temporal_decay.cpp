@@ -4,27 +4,17 @@
 using namespace Rcpp;
 
 // [[Rcpp::export]]
-inline double eval_eccm_intact(const std::vector<double>& phi, const IntegerVector& resp, const IntegerVector& out, const NumericVector& rt) {
-    // a = decision boundary
-    // t_nd = non-decision time
-    // beta_v = drift rate
+inline double eval_eccm_temporal_decay(const std::vector<double>& phi, const IntegerVector& resp, const IntegerVector& out, const NumericVector& rt, const NumericVector& delta_t) {
     double a = std::exp(phi[0]), t_nd = 1.0 / (1.0 + std::exp(-phi[1])), beta_v = std::exp(phi[2]);
-    // eta_LTP = assymentric update when R^(t) = +1
-    // eta_LTD = assymentric update when R^(t) = -1
     double eta_LTP = 1.0 / (1.0 + std::exp(-phi[3])), eta_LTD = 1.0 / (1.0 + std::exp(-phi[4])), w_cb = phi[5]; 
-    // cerebellar dimension
+    double lambda_shift = std::exp(phi[6]); // New temporal shift rate parameter
+    
     int k = 80; int N_MF = 160, N_GC = 1024, N_MLI = 256;
     
-    // read out weight vectors for purkinje
     std::vector<double> W_PF1(N_GC, 0.0), W_PF2(N_GC, 0.0);
-    // read out weight vectors for mli (molecular layer interneurons)
     std::vector<double> W_MLI1(N_MLI, 0.0), W_MLI2(N_MLI, 0.0);
-
-    // forward projection matrix (mf -> gc) : expansion
     std::vector<std::vector<double>> W_MF_GC(N_GC, std::vector<double>(N_MF, 0.0));
-    // forward projection matrix (gc -> mli) : compression
     std::vector<std::vector<double>> W_GC_MLI(N_MLI, std::vector<double>(N_GC, 0.0));
-    // init empty mossy fiber shift register
     std::vector<double> mf(N_MF, 0.0);
     
     SimpleRNG rng(42);
@@ -69,8 +59,27 @@ inline double eval_eccm_intact(const std::vector<double>& phi, const IntegerVect
             for (int i=0; i<N_MLI; ++i) W_MLI2[i] -= lr_mli * err_cb * mli[i];
         }
         
-        for(int j=k-2; j>=0; --j) { mf[j+1] = mf[j]; mf[k+j+1] = mf[k+j]; }
-        mf[0] = (ch == 1) ? 1.0 : -1.0; mf[k] = R_raw;
+        // TEMPORAL DECAY MECHANISM
+        double dt = delta_t[t];
+        int shifts = 1;
+        if (dt > 2.0 && !std::isnan(dt)) {
+            shifts = 1 + std::floor(lambda_shift * (dt - 2.0));
+        }
+        
+        // Prevent shifting more than the register size (k=80)
+        shifts = std::min(shifts, k);
+
+        for (int s = 0; s < shifts; ++s) {
+            for(int j=k-2; j>=0; --j) { mf[j+1] = mf[j]; mf[k+j+1] = mf[k+j]; }
+            
+            if (s == 0) {
+                mf[0] = (ch == 1) ? 1.0 : -1.0; 
+                mf[k] = R_raw;
+            } else {
+                mf[0] = 0.0; 
+                mf[k] = 0.0;
+            }
+        }
     }
     return calc_pen_ll(D_vec);
 }
