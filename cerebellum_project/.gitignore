@@ -23,3 +23,8 @@ Thumbs.db
 
 # Scratch
 scratch/
+
+# Un-ignore data folder and its CSV contents
+!data/
+!data/**
+!data/**/*.csv
