@@ -1,0 +1,122 @@
+functions {
+  real partial_sum(
+    array[] int seq_subj_slice, int start, int end,
+    data array[] int choice, data array[] real rt, data array[] real reward,
+    data array[] int start_idx, data array[] int end_idx,
+    vector alpha_ctx, vector kappa_ctx, vector a, vector tau_nd, vector w_bias
+  ) {
+    real target_sum = 0.0;
+
+    for (s_idx in 1:size(seq_subj_slice)) {
+      int s = seq_subj_slice[s_idx];
+      int start_t = start_idx[s];
+      int end_t = end_idx[s];
+
+      // Cortical Value State (Isolated Markovian formulation)
+      vector[2] Q_ctx = rep_vector(0.5, 2);
+
+      for (t in start_t:end_t) {
+
+        // 1. Kinematic Readout (Static Bias, Dynamic Drift)
+        real delta_Q_ctx = Q_ctx[2] - Q_ctx[1];
+
+        real drift_sign = delta_Q_ctx >= 0 ? 1.0 : -1.0;
+        real v_drift = drift_sign * sqrt(square(kappa_ctx[s] * delta_Q_ctx) + 1e-4);
+
+        if (choice[t] == 1) {
+          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias[s], v_drift);
+        } else {
+          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias[s], -v_drift);
+        }
+
+        // 2. Discrete Cortical Plasticity (Rescorla-Wagner)
+        real RPE = reward[t] - Q_ctx[choice[t] + 1];
+        Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE;
+      }
+    }
+    return target_sum;
+  }
+}
+
+data {
+  int<lower=1> N;
+  int<lower=1> S;
+  array[S] int<lower=1> start_idx;
+  array[S] int<lower=1> end_idx;
+
+  array[N] int<lower=0, upper=1> choice;
+  array[N] real<lower=0> rt;
+  array[N] real<lower=0, upper=1> reward;
+  array[S] real<lower=0> min_rt;
+
+  int<lower=1> grainsize;
+}
+
+transformed data {
+  array[S] int seq_subj;
+  for (s in 1:S) seq_subj[s] = s;
+}
+
+parameters {
+  // Cortical Hyper-means
+  real mu_alpha_ctx;
+  real mu_kappa_ctx;
+  real mu_a;
+  real mu_tau_nd;
+  real mu_w_bias;
+
+  // Cortical Hyper-scales
+  real<lower=0> sigma_alpha_ctx;
+  real<lower=0> sigma_kappa_ctx;
+  real<lower=0> sigma_a;
+  real<lower=0> sigma_tau_nd;
+  real<lower=0> sigma_w_bias;
+
+  // Subject Deviates
+  vector[S] z_alpha_ctx;
+  vector[S] z_kappa_ctx;
+  vector[S] z_a;
+  vector[S] z_tau_nd;
+  vector[S] z_w_bias;
+}
+
+transformed parameters {
+  // Physiological Bounding Diffeomorphisms
+  vector[S] alpha_ctx = inv_logit(mu_alpha_ctx + sigma_alpha_ctx * z_alpha_ctx);
+  vector[S] kappa_ctx = 10.0 * inv_logit(mu_kappa_ctx + sigma_kappa_ctx * z_kappa_ctx);
+  vector[S] a = 0.5 + 4.5 * inv_logit(mu_a + sigma_a * z_a);
+
+  // Epsilon Kinematic Buffer
+  vector[S] tau_nd = 0.001 + (to_vector(min_rt) - 0.002) .* inv_logit(mu_tau_nd + sigma_tau_nd * z_tau_nd);
+
+  // Static Baseline Bias
+  vector[S] w_bias = inv_logit(mu_w_bias + sigma_w_bias * z_w_bias);
+}
+
+model {
+  // Hyper-Priors
+  mu_alpha_ctx ~ normal(0, 1.5);
+  mu_kappa_ctx ~ normal(0, 1.5);
+  mu_a ~ normal(0, 1);
+  mu_tau_nd ~ normal(-1, 1);
+  mu_w_bias ~ normal(0, 1.5);
+
+  sigma_alpha_ctx ~ normal(0, 1);
+  sigma_kappa_ctx ~ normal(0, 1);
+  sigma_a ~ normal(0, 1);
+  sigma_tau_nd ~ normal(0, 1);
+  sigma_w_bias ~ normal(0, 1);
+
+  // Non-centered hierarchical sampling
+  z_alpha_ctx ~ std_normal();
+  z_kappa_ctx ~ std_normal();
+  z_a ~ std_normal();
+  z_tau_nd ~ std_normal();
+  z_w_bias ~ std_normal();
+
+  target += reduce_sum(
+    partial_sum, seq_subj, grainsize,
+    choice, rt, reward, start_idx, end_idx,
+    alpha_ctx, kappa_ctx, a, tau_nd, w_bias
+  );
+}

@@ -1,0 +1,25 @@
+# Compiled objects
+*.o
+*.so
+*.dll
+*.dylib
+
+# R artifacts
+.Rhistory
+.RData
+.Rproj.user
+*.RData
+
+# Temporary output files
+output_*.txt
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Scratch
+scratch/
