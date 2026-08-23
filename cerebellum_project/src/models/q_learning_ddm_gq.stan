@@ -59,15 +59,25 @@ generated quantities {
         real drift_sign = delta_Q_ctx >= 0 ? 1.0 : -1.0;
         real v_drift = drift_sign * sqrt(square(kappa_ctx[s] * delta_Q_ctx) + 1e-4);
 
+        // Strict Drift Lower Bound
+        if (abs(v_drift) < 1e-4) {
+          v_drift = v_drift >= 0 ? 1e-4 : -1e-4;
+        }
+
         real log_uniform_dens = log(1.0 / 5.8);
         real wiener_lp;
 
-        if (choice[t] == 1) {
-          log_lik[t] = wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias[s], v_drift);
+        // Temporal Impossibility Violation Check
+        if (rt[t] - tau_nd[s] < 1e-4) {
+          log_lik[t] = log_uniform_dens; // Bypass wiener entirely
         } else {
-          log_lik[t] = wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias[s], -v_drift);
+          if (choice[t] == 1) {
+            wiener_lp = wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias[s], v_drift);
+          } else {
+            wiener_lp = wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias[s], -v_drift);
+          }
+          log_lik[t] = log_mix(0.98, wiener_lp, log_uniform_dens);
         }
-        log_lik[t] = log_mix(0.98, wiener_lp, log_uniform_dens);
 
         real RPE = reward[t] - Q_ctx[choice[t] + 1];
         Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE;

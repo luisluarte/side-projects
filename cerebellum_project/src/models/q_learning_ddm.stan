@@ -11,28 +11,49 @@ functions {
       int s = seq_subj_slice[s_idx];
       int start_t = start_idx[s];
       int end_t = end_idx[s];
+      int n_trials = end_t - start_t + 1;
 
       // Cortical Value State (Isolated Markovian formulation)
       vector[2] Q_ctx = rep_vector(0.5, 2);
 
+      array[n_trials] real rt_subj;
+      array[n_trials] real w_bias_subj;
+      array[n_trials] real v_subj;
+
+      // Hoist scalar parameters
+      real kappa_s = kappa_ctx[s];
+      real alpha_s = alpha_ctx[s];
+      real w_bias_s = w_bias[s];
+      real a_s = a[s];
+      real tau_nd_s = tau_nd[s];
+
       for (t in start_t:end_t) {
+        int idx = t - start_t + 1;
+        rt_subj[idx] = rt[t];
 
         // 1. Kinematic Readout (Static Bias, Dynamic Drift)
         real delta_Q_ctx = Q_ctx[2] - Q_ctx[1];
 
-        real drift_sign = delta_Q_ctx >= 0 ? 1.0 : -1.0;
-        real v_drift = drift_sign * sqrt(square(kappa_ctx[s] * delta_Q_ctx) + 1e-4);
+        // Replace expensive sqrt(square + eps) curvature with piecewise linear bound
+        real v_raw = kappa_s * delta_Q_ctx;
+        real v_drift = v_raw;
+        if (abs(v_drift) < 1e-4) {
+          v_drift = v_drift >= 0 ? 1e-4 : -1e-4;
+        }
 
         if (choice[t] == 1) {
-          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias[s], v_drift);
+          w_bias_subj[idx] = w_bias_s;
+          v_subj[idx] = v_drift;
         } else {
-          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias[s], -v_drift);
+          w_bias_subj[idx] = 1.0 - w_bias_s;
+          v_subj[idx] = -v_drift;
         }
 
         // 2. Discrete Cortical Plasticity (Rescorla-Wagner)
         real RPE = reward[t] - Q_ctx[choice[t] + 1];
-        Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE;
+        Q_ctx[choice[t] + 1] += alpha_s * RPE;
       }
+      target_sum += wiener_lpdf(rt_subj | a_s, tau_nd_s, w_bias_subj, v_subj);
     }
     return target_sum;
   }

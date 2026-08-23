@@ -137,23 +137,36 @@ generated quantities {
         real v_base = kappa_ctx[s] * delta_Q_ctx;
         real v_effective = v_base * exp(-gamma_suppress[s] * delta_CC);
 
+        // Strict Drift Lower Bound
+        if (abs(v_effective) < 1e-4) {
+          v_effective = v_effective >= 0 ? 1e-4 : -1e-4;
+        }
+
         real log_uniform_dens = log(1.0 / 5.8);
         real wiener_lp;
 
-        // Compute Pointwise Log-Likelihood
-        if (choice[t] == 1) {
-          log_lik[t] = wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias, v_effective);
+        // Temporal Impossibility Violation Check
+        if (rt[t] - tau_nd[s] < 1e-4) {
+          log_lik[t] = log_uniform_dens; // Bypass wiener entirely
         } else {
-          log_lik[t] = wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias, -v_effective);
+          // Compute Pointwise Log-Likelihood
+          if (choice[t] == 1) {
+            wiener_lp = wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias, v_effective);
+          } else {
+            wiener_lp = wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias, -v_effective);
+          }
+          log_lik[t] = log_mix(0.98, wiener_lp, log_uniform_dens);
         }
-        log_lik[t] = log_mix(0.98, wiener_lp, log_uniform_dens);
 
         // Phase 3: Exact Analytical Plasticity
-        real RPE = reward[t] - Q_ctx[choice[t] + 1];
-        Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE;
+        real RPE_ctx = reward[t] - Q_ctx[choice[t] + 1];
+        Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE_ctx;
 
-        real E_c1 = (choice[t] == 0) ? RPE : 0.0;
-        real E_c2 = (choice[t] == 1) ? RPE : 0.0;
+        real cb_pred = (choice[t] == 1) ? Q_cb_2 : Q_cb_1;
+        real RPE_cb = reward[t] - cb_pred;
+
+        real E_cb1 = (choice[t] == 0) ? RPE_cb : 0.0;
+        real E_cb2 = (choice[t] == 1) ? RPE_cb : 0.0;
 
         if (f_dur[t] > 0.01) {
           mf_state = exact_mf_step(f_dur[t], mf_state, tau_m[s], reward[t], N_MF);
@@ -164,10 +177,15 @@ generated quantities {
           real int_gc_f = (1.0 - decay_gc_f) / l_gc_eff;
           real int_mli_f = (1.0 - decay_mli_f) / l_mli_eff;
 
-          w_gc1 = w_gc1 * decay_gc_f + (eta_gc[s] * E_c1 * mf_state) * int_gc_f;
-          w_gc2 = w_gc2 * decay_gc_f + (eta_gc[s] * E_c2 * mf_state) * int_gc_f;
-          w_mli1 = w_mli1 * decay_mli_f + (eta_mli[s] * E_c1 * mf_state) * int_mli_f;
-          w_mli2 = w_mli2 * decay_mli_f + (eta_mli[s] * E_c2 * mf_state) * int_mli_f;
+          real scale_gc1 = eta_gc[s] * E_cb1 * int_gc_f;
+          real scale_gc2 = eta_gc[s] * E_cb2 * int_gc_f;
+          real scale_mli1 = -eta_mli[s] * E_cb1 * int_mli_f;
+          real scale_mli2 = -eta_mli[s] * E_cb2 * int_mli_f;
+
+          w_gc1 = w_gc1 * decay_gc_f + mf_state * scale_gc1;
+          w_gc2 = w_gc2 * decay_gc_f + mf_state * scale_gc2;
+          w_mli1 = w_mli1 * decay_mli_f + mf_state * scale_mli1;
+          w_mli2 = w_mli2 * decay_mli_f + mf_state * scale_mli2;
         }
       }
     }

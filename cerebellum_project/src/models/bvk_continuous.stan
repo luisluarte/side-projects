@@ -38,23 +38,46 @@ functions {
       int s = seq_subj_slice[s_idx];
       int start_t = start_idx[s];
       int end_t = end_idx[s];
+      int n_trials = end_t - start_t + 1;
 
       vector[2] Q_ctx = rep_vector(0.5, 2);
       vector[N_MF] mf_state = rep_vector(0.0, N_MF);
 
-      // Dual-Space Eligibility Weights (Projected into the N_MF basis)
       vector[N_MF] w_gc1 = rep_vector(0.0, N_MF);
       vector[N_MF] w_gc2 = rep_vector(0.0, N_MF);
       vector[N_MF] w_mli1 = rep_vector(0.0, N_MF);
       vector[N_MF] w_mli2 = rep_vector(0.0, N_MF);
 
+      array[n_trials] real rt_subj;
+      array[n_trials] real w_bias_subj;
+      array[n_trials] real v_subj;
+
+      // Hoist subject-level parameters to avoid array indexing and redundant ops in the loop
+      real a_s = a[s];
+      real tau_nd_s = tau_nd[s];
+      real theta_cb_s = theta_cb[s];
+      real kappa_ctx_s = kappa_ctx[s];
+      real gamma_suppress_s = gamma_suppress[s];
+      real alpha_ctx_s = alpha_ctx[s];
+      real tau_m_s = tau_m[s];
+      
+      real l_gc_eff = lambda_gc[s] + 1e-8;
+      real l_mli_eff = lambda_mli[s] + 1e-8;
+      real eta_gc_s = eta_gc[s];
+      real eta_mli_s = eta_mli[s];
+      
+      real inv_l_gc_eff = 1.0 / l_gc_eff;
+      real inv_l_mli_eff = 1.0 / l_mli_eff;
+
       for (t in start_t:end_t) {
+        int idx = t - start_t + 1;
+        rt_subj[idx] = rt[t];
 
         // -----------------------------------------------------
         // Phase 1: Inter-Trial Interval
         // -----------------------------------------------------
         if (iti[t] > 0.01) {
-          mf_state = exact_mf_step(iti[t], mf_state, tau_m[s], 0.0, N_MF);
+          mf_state = exact_mf_step(iti[t], mf_state, tau_m_s, 0.0, N_MF);
 
           real decay_gc_iti = exp(-lambda_gc[s] * iti[t]);
           real decay_mli_iti = exp(-lambda_mli[s] * iti[t]);
@@ -67,7 +90,6 @@ functions {
 
         // -----------------------------------------------------
         // Phase 2: Dual Formulation Readout
-        // Mercer Kernel Evaluation: K(MF, MF) perfectly approximates GC spatial dot products
         // -----------------------------------------------------
         real Q_cb_1 = dot_product(w_gc1, mf_state) - dot_product(w_mli1, mf_state);
         real Q_cb_2 = dot_product(w_gc2, mf_state) - dot_product(w_mli2, mf_state);
@@ -75,45 +97,58 @@ functions {
         real delta_Q_ctx = Q_ctx[2] - Q_ctx[1];
         real delta_Q_cb = Q_cb_2 - Q_cb_1;
 
-        real w_bias = 0.5 + 0.45 * tanh(theta_cb[s] * delta_Q_cb);
+        real w_bias = 0.5 + 0.45 * tanh(theta_cb_s * delta_Q_cb);
         real delta_CC = abs(delta_Q_ctx - delta_Q_cb);
-        real v_base = kappa_ctx[s] * delta_Q_ctx;
-        real v_effective = v_base * exp(-gamma_suppress[s] * delta_CC);
+        real v_base = kappa_ctx_s * delta_Q_ctx;
+        real v_effective = v_base * exp(-gamma_suppress_s * delta_CC);
+
+        // Strict Drift Lower Bound (prevents Wiener density from shattering at 0)
+        if (abs(v_effective) < 1e-4) {
+          v_effective = v_effective >= 0 ? 1e-4 : -1e-4;
+        }
 
         if (choice[t] == 1) {
-          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], w_bias, v_effective);
+          w_bias_subj[idx] = w_bias;
+          v_subj[idx] = v_effective;
         } else {
-          target_sum += wiener_lpdf(rt[t] | a[s], tau_nd[s], 1.0 - w_bias, -v_effective);
+          w_bias_subj[idx] = 1.0 - w_bias;
+          v_subj[idx] = -v_effective;
         }
 
         // -----------------------------------------------------
         // Phase 3: Analytical Plasticity in Dual Space
         // -----------------------------------------------------
-        real RPE = reward[t] - Q_ctx[choice[t] + 1];
-        Q_ctx[choice[t] + 1] += alpha_ctx[s] * RPE;
+        real RPE_ctx = reward[t] - Q_ctx[choice[t] + 1];
+        Q_ctx[choice[t] + 1] += alpha_ctx_s * RPE_ctx;
 
-        real E_c1 = (choice[t] == 0) ? RPE : 0.0;
-        real E_c2 = (choice[t] == 1) ? RPE : 0.0;
+        real cb_pred = (choice[t] == 1) ? Q_cb_2 : Q_cb_1;
+        real RPE_cb = reward[t] - cb_pred;
+
+        real E_cb1 = (choice[t] == 0) ? RPE_cb : 0.0;
+        real E_cb2 = (choice[t] == 1) ? RPE_cb : 0.0;
 
         if (f_dur[t] > 0.01) {
-          mf_state = exact_mf_step(f_dur[t], mf_state, tau_m[s], reward[t], N_MF);
-
-          real l_gc_eff = lambda_gc[s] + 1e-8;
-          real l_mli_eff = lambda_mli[s] + 1e-8;
+          mf_state = exact_mf_step(f_dur[t], mf_state, tau_m_s, reward[t], N_MF);
 
           real decay_gc_f = exp(-l_gc_eff * f_dur[t]);
           real decay_mli_f = exp(-l_mli_eff * f_dur[t]);
 
-          real int_gc_f = (1.0 - decay_gc_f) / l_gc_eff;
-          real int_mli_f = (1.0 - decay_mli_f) / l_mli_eff;
+          real int_gc_f = (1.0 - decay_gc_f) * inv_l_gc_eff;
+          real int_mli_f = (1.0 - decay_mli_f) * inv_l_mli_eff;
 
-          // Spatial updates isolate the temporal envelope explicitly in the N_MF basis
-          w_gc1 = w_gc1 * decay_gc_f + (eta_gc[s] * E_c1 * mf_state) * int_gc_f;
-          w_gc2 = w_gc2 * decay_gc_f + (eta_gc[s] * E_c2 * mf_state) * int_gc_f;
-          w_mli1 = w_mli1 * decay_mli_f + (eta_mli[s] * E_c1 * mf_state) * int_mli_f;
-          w_mli2 = w_mli2 * decay_mli_f + (eta_mli[s] * E_c2 * mf_state) * int_mli_f;
+          real scale_gc1 = eta_gc_s * E_cb1 * int_gc_f;
+          real scale_gc2 = eta_gc_s * E_cb2 * int_gc_f;
+          real scale_mli1 = -eta_mli_s * E_cb1 * int_mli_f;
+          real scale_mli2 = -eta_mli_s * E_cb2 * int_mli_f;
+
+          w_gc1 = w_gc1 * decay_gc_f + mf_state * scale_gc1;
+          w_gc2 = w_gc2 * decay_gc_f + mf_state * scale_gc2;
+          w_mli1 = w_mli1 * decay_mli_f + mf_state * scale_mli1;
+          w_mli2 = w_mli2 * decay_mli_f + mf_state * scale_mli2;
         }
       }
+
+      target_sum += wiener_lpdf(rt_subj | a[s], tau_nd[s], w_bias_subj, v_subj);
     }
     return target_sum;
   }

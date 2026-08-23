@@ -1,3 +1,4 @@
+set.seed(420)
 # libs --------------------------------------------------------------------
 pacman::p_load(
   tidyverse,
@@ -33,7 +34,7 @@ dat_clean <- dat_raw %>%
   ungroup() %>%
   filter(RT > 0.1, RT < 3.0, !is.na(Resp), !is.na(`F`))
 
-pid_sample <- sample(unique(dat_clean$participant_id), size = 15)
+pid_sample <- sample(unique(dat_clean$participant_id), size = 30)
 dat_clean <- dat_clean %>%
   filter(participant_id %in% pid_sample)
 
@@ -52,8 +53,6 @@ min_rt_array <- subject_counts$min_rt
 
 # model parameters --------------------------------------------------------
 N_MF <- 5
-
-set.seed(420)
 
 # stan data ---------------------------------------------------------------
 stan_data <- list(
@@ -100,6 +99,18 @@ fit_q <- mod2$sample(
   max_treedepth = 10
 )
 
+# save fits
+out_dir <- "../../results/"
+fit_bvk$save_object(file.path(out_dir, "fit_bvk_complete.rds"))
+fit_q$save_object(file.path(out_dir, "fit_q_complete.rds"))
+write_rds(x = stan_data, file = "../../results/stan_data.rds")
+
+fit_bvk <- read_rds("../../results/fit_bvk_complete.rds")
+fit_q <- read_rds("../../results/fit_q_complete.rds")
+
+data_path <- fit_q$data_file()
+raw_json_text <- readLines(data_path, warn = FALSE)
+stan_data <- jsonlite::fromJSON(raw_json_text, simplifyVector = TRUE)
 
 # PSIS-LOOCV --------------------------------------------------------------
 
@@ -142,15 +153,3 @@ stacking_weights <- loo_model_weights(
   method = "stacking"
 )
 print(stacking_weights)
-
-# model comparison pseudo-bayes factor
-best_model <- rownames(loo_diff)[1]
-if (best_model == "Dual_Kernel") {
-  elpd_diff_val <- abs(loo_diff$elpd_diff[2])
-  loo_bf <- exp(elpd_diff_val)
-  cat(sprintf("\nLOO-BF: The Dual-Kernel model is %g times more probable than the Q-Learning baseline.\n", loo_bf))
-} else {
-  elpd_diff_val <- abs(loo_diff["Dual_Kernel", "elpd_diff"])
-  loo_bf <- exp(elpd_diff_val)
-  cat(sprintf("\nLOO-BF: The Q-Learning baseline is %g times more probable than the Dual-Kernel model.\n", loo_bf))
-}
