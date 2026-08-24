@@ -76,11 +76,13 @@ cpp_options <- list(stan_threads = TRUE)
 mod1 <- cmdstan_model("../models/bvk_continuous.stan", cpp_options = cpp_options)
 mod2 <- cmdstan_model("../models/q_learning_ddm.stan", cpp_options = cpp_options)
 
+threads_per_chain <- 8
+
 fit_bvk <- mod1$sample(
   data = stan_data,
   chains = 4,
   parallel_chains = 4,
-  threads_per_chain = 4,
+  threads_per_chain = threads_per_chain,
   iter_warmup = 1000,
   iter_sampling = 1000,
   refresh = 10,
@@ -91,7 +93,7 @@ fit_q <- mod2$sample(
   data = stan_data,
   chains = 4,
   parallel_chains = 4,
-  threads_per_chain = 4,
+  threads_per_chain = threads_per_chain,
   iter_warmup = 1000,
   iter_sampling = 1000,
   refresh = 10,
