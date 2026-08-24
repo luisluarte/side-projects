@@ -49,8 +49,6 @@ parameters {
   real mu_tau_m;
   real mu_eta_gc;
   real mu_lambda_gc;
-  real mu_eta_mli;
-  real mu_lambda_mli;
   real mu_theta_cb;
   real mu_kappa_ctx;
   real mu_gamma_suppress;
@@ -61,8 +59,6 @@ parameters {
   real<lower=0> sigma_tau_m;
   real<lower=0> sigma_eta_gc;
   real<lower=0> sigma_lambda_gc;
-  real<lower=0> sigma_eta_mli;
-  real<lower=0> sigma_lambda_mli;
   real<lower=0> sigma_theta_cb;
   real<lower=0> sigma_kappa_ctx;
   real<lower=0> sigma_gamma_suppress;
@@ -73,8 +69,6 @@ parameters {
   vector[S] z_tau_m;
   vector[S] z_eta_gc;
   vector[S] z_lambda_gc;
-  vector[S] z_eta_mli;
-  vector[S] z_lambda_mli;
   vector[S] z_theta_cb;
   vector[S] z_kappa_ctx;
   vector[S] z_gamma_suppress;
@@ -84,11 +78,9 @@ parameters {
 
 transformed parameters {
   vector[S] alpha_ctx = inv_logit(mu_alpha_ctx + sigma_alpha_ctx * z_alpha_ctx);
-  vector[S] tau_m = 0.1 + 9.9 * inv_logit(mu_tau_m + sigma_tau_m * z_tau_m);
-  vector[S] eta_gc = 5.0 * inv_logit(mu_eta_gc + sigma_eta_gc * z_eta_gc);
+  vector[S] tau_m = 1.0 + 9.0 * inv_logit(mu_tau_m + sigma_tau_m * z_tau_m);
+  vector[S] eta_gc = 0.5 + 4.5 * inv_logit(mu_eta_gc + sigma_eta_gc * z_eta_gc);
   vector[S] lambda_gc = 5.0 * inv_logit(mu_lambda_gc + sigma_lambda_gc * z_lambda_gc);
-  vector[S] eta_mli = 5.0 * inv_logit(mu_eta_mli + sigma_eta_mli * z_eta_mli);
-  vector[S] lambda_mli = 5.0 * inv_logit(mu_lambda_mli + sigma_lambda_mli * z_lambda_mli);
   vector[S] theta_cb = 10.0 * inv_logit(mu_theta_cb + sigma_theta_cb * z_theta_cb);
   vector[S] kappa_ctx = 10.0 * inv_logit(mu_kappa_ctx + sigma_kappa_ctx * z_kappa_ctx);
   vector[S] gamma_suppress = 10.0 * inv_logit(mu_gamma_suppress + sigma_gamma_suppress * z_gamma_suppress);
@@ -118,7 +110,7 @@ generated quantities {
         if (iti[t] > 0.01) {
           mf_state = exact_mf_step(iti[t], mf_state, tau_m[s], 0.0, N_MF);
           real decay_gc_iti = exp(-lambda_gc[s] * iti[t]);
-          real decay_mli_iti = exp(-lambda_mli[s] * iti[t]);
+          real decay_mli_iti = exp(-(lambda_gc[s] * 1.5) * iti[t]);
           w_gc1 *= decay_gc_iti;
           w_gc2 *= decay_gc_iti;
           w_mli1 *= decay_mli_iti;
@@ -133,9 +125,9 @@ generated quantities {
         real delta_Q_cb = Q_cb_2 - Q_cb_1;
 
         real w_bias = 0.5 + 0.45 * tanh(theta_cb[s] * delta_Q_cb);
-        real delta_CC = abs(delta_Q_ctx - delta_Q_cb);
+        real conflict = 0.5 * (1.0 - tanh(10.0 * delta_Q_ctx) * tanh(10.0 * delta_Q_cb));
         real v_base = kappa_ctx[s] * delta_Q_ctx;
-        real v_effective = v_base * exp(-gamma_suppress[s] * delta_CC);
+        real v_effective = v_base * exp(-gamma_suppress[s] * conflict);
 
         // Strict Drift Lower Bound
         if (abs(v_effective) < 1e-4) {
@@ -171,7 +163,7 @@ generated quantities {
         if (f_dur[t] > 0.01) {
           mf_state = exact_mf_step(f_dur[t], mf_state, tau_m[s], reward[t], N_MF);
           real l_gc_eff = lambda_gc[s] + 1e-8;
-          real l_mli_eff = lambda_mli[s] + 1e-8;
+          real l_mli_eff = (lambda_gc[s] * 1.5) + 1e-8;
           real decay_gc_f = exp(-l_gc_eff * f_dur[t]);
           real decay_mli_f = exp(-l_mli_eff * f_dur[t]);
           real int_gc_f = (1.0 - decay_gc_f) / l_gc_eff;
@@ -179,8 +171,8 @@ generated quantities {
 
           real scale_gc1 = eta_gc[s] * E_cb1 * int_gc_f;
           real scale_gc2 = eta_gc[s] * E_cb2 * int_gc_f;
-          real scale_mli1 = -eta_mli[s] * E_cb1 * int_mli_f;
-          real scale_mli2 = -eta_mli[s] * E_cb2 * int_mli_f;
+          real scale_mli1 = -eta_gc[s] * E_cb1 * int_mli_f;
+          real scale_mli2 = -eta_gc[s] * E_cb2 * int_mli_f;
 
           w_gc1 = w_gc1 * decay_gc_f + mf_state * scale_gc1;
           w_gc2 = w_gc2 * decay_gc_f + mf_state * scale_gc2;

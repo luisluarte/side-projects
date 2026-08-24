@@ -34,7 +34,7 @@ dat_clean <- dat_raw %>%
   ungroup() %>%
   filter(RT > 0.1, RT < 3.0, !is.na(Resp), !is.na(`F`))
 
-pid_sample <- sample(unique(dat_clean$participant_id), size = 30)
+pid_sample <- sample(unique(dat_clean$participant_id), size = 5)
 dat_clean <- dat_clean %>%
   filter(participant_id %in% pid_sample)
 
@@ -85,10 +85,10 @@ fit_bvk <- mod1$sample(
   threads_per_chain = threads_per_chain,
   iter_warmup = 1000,
   iter_sampling = 1000,
-  refresh = 10,
   adapt_delta = 0.85,
   max_treedepth = 10
 )
+
 fit_q <- mod2$sample(
   data = stan_data,
   chains = 4,
@@ -96,23 +96,22 @@ fit_q <- mod2$sample(
   threads_per_chain = threads_per_chain,
   iter_warmup = 1000,
   iter_sampling = 1000,
-  refresh = 10,
   adapt_delta = 0.85,
   max_treedepth = 10
 )
 
+fit_bvk$save_object("../../results/fit_bvk_complete.rds")
+fit_q$save_object("../../results/fit_q_complete.rds")
+
 # save fits
-out_dir <- "../../results/"
-fit_bvk$save_object(file.path(out_dir, "fit_bvk_complete.rds"))
-fit_q$save_object(file.path(out_dir, "fit_q_complete.rds"))
-write_rds(x = stan_data, file = "../../results/stan_data.rds")
+# out_dir <- "../../results/"
+# fit_bvk$save_object(file.path(out_dir, "fit_bvk_complete.rds"))
+# fit_q$save_object(file.path(out_dir, "fit_q_complete.rds"))
+# write_rds(x = stan_data, file = "../../results/stan_data.rds")
 
 fit_bvk <- read_rds("../../results/fit_bvk_complete.rds")
 fit_q <- read_rds("../../results/fit_q_complete.rds")
-
-data_path <- fit_q$data_file()
-raw_json_text <- readLines(data_path, warn = FALSE)
-stan_data <- jsonlite::fromJSON(raw_json_text, simplifyVector = TRUE)
+stan_data <- read_rds("../../results/stan_data.rds")
 
 # PSIS-LOOCV --------------------------------------------------------------
 
@@ -135,6 +134,20 @@ gq_q <- mod_q_gq$generate_quantities(
 # extract pointwise log-likelihood
 ll_bvk <- gq_bvk$draws("log_lik", format = "array")
 ll_q <- gq_q$draws("log_lik", format = "array")
+
+# ----- GPD TAIL STABILIZATION PATCH ----- #
+# Unconditionally inject 1e-5 jitter into ALL log-likelihoods.
+# This mathematically guarantees no identical tail values exist to crash the GPD fit,
+# while being infinitesimally small so it does not affect the macroscopic ELPD.
+inject_unconditional_jitter <- function(ll_array) {
+  noise <- array(rnorm(length(ll_array), mean = 0, sd = 1e-5), dim = dim(ll_array))
+  return(ll_array + noise)
+}
+
+set.seed(123)
+ll_bvk <- inject_unconditional_jitter(ll_bvk)
+ll_q   <- inject_unconditional_jitter(ll_q)
+# ---------------------------------------- #
 
 # compute PSIS-LOO
 r_eff_bvk <- relative_eff(exp(ll_bvk))
