@@ -34,7 +34,7 @@ dat_clean <- dat_raw %>%
   ungroup() %>%
   filter(RT > 0.1, RT < 3.0, !is.na(Resp), !is.na(`F`))
 
-pid_sample <- sample(unique(dat_clean$participant_id), size = 5)
+pid_sample <- sample(unique(dat_clean$participant_id), size = 30)
 dat_clean <- dat_clean %>%
   filter(participant_id %in% pid_sample)
 
