@@ -105,13 +105,13 @@ fit_q$save_object("../../results/fit_q_complete.rds")
 
 # save fits
 # out_dir <- "../../results/"
-# fit_bvk$save_object(file.path(out_dir, "fit_bvk_complete.rds"))
-# fit_q$save_object(file.path(out_dir, "fit_q_complete.rds"))
-# write_rds(x = stan_data, file = "../../results/stan_data.rds")
+fit_bvk$save_object(file.path(out_dir, "fit_bvk_complete.rds"))
+fit_q$save_object(file.path(out_dir, "fit_q_complete.rds"))
+write_rds(x = stan_data, file = "../../results/stan_data.rds")
 
-fit_bvk <- read_rds("../../results/fit_bvk_complete.rds")
-fit_q <- read_rds("../../results/fit_q_complete.rds")
-stan_data <- read_rds("../../results/stan_data.rds")
+# fit_bvk <- read_rds("../../results/fit_bvk_complete.rds")
+# fit_q <- read_rds("../../results/fit_q_complete.rds")
+# stan_data <- read_rds("../../results/stan_data.rds")
 
 # PSIS-LOOCV --------------------------------------------------------------
 
