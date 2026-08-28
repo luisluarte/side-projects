@@ -1,0 +1,22 @@
+=== STATISTICAL COMPARISON TO BASELINE WALD (H0) ===
+Baseline Wald Mean NLL: 95.81
+
+      ModelID Activation kappa K_sa Mean_NLL  Diff_NLL      P_Value   Cohens_D
+ CC_Model_069       Tanh  0.80   20 40.56872 -55.24389 6.116560e-15 -0.3312448
+ CC_Model_020     Linear  0.99    2 41.60018 -54.21243 7.383212e-15 -0.3140607
+ CC_Model_011    Sigmoid  0.80    2 42.72027 -53.09235 4.352804e-15 -0.3146034
+ CC_Model_001       Tanh  0.10    2 43.11035 -52.70226 2.705681e-15 -0.3148379
+ CC_Model_004     Linear  0.10    2 44.41715 -51.39546 5.259478e-15 -0.3068019
+ CC_Model_079    Sigmoid  0.99   20 44.91460 -50.89801 9.422001e-15 -0.3062217
+ CC_Model_036     Linear  0.90    5 45.32161 -50.49100 9.422001e-15 -0.3024323
+ CC_Model_010       ReLU  0.80    2 47.38513 -48.42748 5.461957e-15 -0.2862887
+ CC_Model_073       Tanh  0.90   20 47.48750 -48.32511 3.739866e-15 -0.2929383
+ CC_Model_086       ReLU  0.50   50 47.75570 -48.05691 1.270333e-14 -0.2994926
+
+=== WORST 5 ===
+      ModelID Activation kappa K_sa Mean_NLL  Diff_NLL      P_Value   Cohens_D
+ CC_Model_037       Tanh  0.99    5 62.34399 -33.46862 7.811233e-15 -0.2164741
+ CC_Model_091    Sigmoid  0.80   50 64.64266 -31.16995 3.989763e-14 -0.2034258
+ CC_Model_022       ReLU  0.10    5 65.66216 -30.15046 1.742308e-14 -0.2052258
+ CC_Model_089       Tanh  0.80   50 65.80012 -30.01249 3.846440e-14 -0.1979187
+ CC_Model_023    Sigmoid  0.10    5 67.23085 -28.58176 1.678878e-14 -0.1794085

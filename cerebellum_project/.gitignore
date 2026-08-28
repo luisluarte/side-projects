@@ -28,3 +28,4 @@ scratch/
 !data/
 !data/**
 !data/**/*.csv
+gcp_transfer.tar.gz

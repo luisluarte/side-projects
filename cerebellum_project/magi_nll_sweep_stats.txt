@@ -1,0 +1,25 @@
+=== MAXIMUM LIKELIHOOD PHYLOGENY SWEEP (NLL) ===
+Null Hypothesis (H0): Baseline Wald Architecture
+
+         Candidate  Metric Mean_Baseline Mean_Candidate     Mean_Diff
+ Q-Perturbed (LTI)  PR_AUC     0.7894715   7.524074e-01 -3.706415e-02
+ Q-Perturbed (LTI) ROC_AUC     0.7940330   6.406726e-01 -1.533603e-01
+ Q-Perturbed (LTI)     MCC     0.4778668   4.072069e-01 -7.065993e-02
+ Q-Perturbed (LTI)   Brier     0.1775853   2.242331e-01  4.664772e-02
+ Q-Perturbed (LTI) RT_RMSE     2.5649864   5.909342e+00  3.344356e+00
+   Terminal Hybrid  PR_AUC     0.7894715   7.348632e-01 -5.460830e-02
+   Terminal Hybrid ROC_AUC     0.7940330   5.941867e-01 -1.998463e-01
+   Terminal Hybrid     MCC     0.4783705   3.447241e-01 -1.336464e-01
+   Terminal Hybrid   Brier     0.1775853   2.322799e-01  5.469451e-02
+   Terminal Hybrid RT_RMSE     2.5649864   6.355136e+21  6.355136e+21
+      P_Value    Cohens_D
+ 2.828679e-03 -0.25422214
+ 4.477684e-13 -0.79273740
+ 1.748410e-02 -0.30445470
+ 5.550880e-16  0.91382291
+ 3.657230e-04  0.21840817
+ 1.287166e-03 -0.31504032
+ 1.700957e-16 -1.01257367
+ 2.930708e-02 -0.40579954
+ 1.954658e-16  0.93760990
+ 1.161308e-06  0.08838835
