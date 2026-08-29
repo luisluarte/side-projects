@@ -23,12 +23,9 @@ dat_clean <- dat_raw %>% arrange(participant_id, ttp) %>%
 S <- max(dat_clean$participant_idx)
 d_list <- split(dat_clean, dat_clean$participant_idx)
 
-cat(sprintf("Cohort size: %d subjects across %d trials.\n", S, nrow(dat_clean)))
-
 # Set hyperparameter vector for M006: [lambda_sparse, beta_ising, K_sa]
 hyper <- c(4.64e-4, 5e-4, 18)
 
-# Robust expected RT calculator with LHopital limit at v -> 0
 calc_expected_rt <- function(a, v, tnd) {
     sapply(1:length(v), function(i) {
         av <- abs(v[i])
@@ -41,9 +38,7 @@ calc_expected_rt <- function(a, v, tnd) {
     })
 }
 
-# Initialize parallel cluster
 num_cores <- min(parallel::detectCores() - 2, 12)
-cat(sprintf("Spawning parallel cluster with %d workers...\n", num_cores))
 cl <- parallel::makeCluster(num_cores)
 
 clusterExport(cl, c("cpp_path", "hyper", "d_list", "calc_expected_rt"), envir=environment())
@@ -53,7 +48,6 @@ clusterEvalQ(cl, {
     Rcpp::sourceCpp(cpp_path)
 })
 
-# Worker function for single subject
 fit_subject <- function(s_idx) {
     d <- d_list[[s_idx]]
     
@@ -62,32 +56,33 @@ fit_subject <- function(s_idx) {
         v <- get_nll_base(p, d$Boundary+1, d$Reward, d$RT)
         if(is.nan(v) || is.infinite(v)) 1e6 else v 
     }
+    # Initial Base: a=1.5, tnd=0.25, v=1.5, alpha=0.5
+    init_b <- c(log(1.5), log(0.25/(0.8-0.25)), log(1.5), log(0.5/(1-0.5)))
     res_b <- tryCatch(
-        cma_es(rep(0, 4), obj_base, control=list(maxit=60, sigma=0.5)), 
-        error=function(e) list(par=rep(0,4), value=NA)
+        cma_es(init_b, obj_base, control=list(maxit=150, sigma=0.5)), 
+        error=function(e) list(par=init_b, value=NA)
     )
     
-    # 2. M006 FIT (Corrected Bounded Engine)
+    # 2. M006 FIT (BOUNDED & SA ACTIVE)
     obj_006 <- function(p) { 
         v <- get_nll_006(p, hyper, d$Boundary+1, d$Reward, d$RT, d$ITI)
         if(is.nan(v) || is.infinite(v)) 1e6 else v 
     }
+    # a=1.5, tnd=0.25, v=1.5, alpha_ctx=0.5, alpha_pc=0.5, gamma=1.5, temp=1.0, tau=1.0, w_u=1.0
+    init_6 <- c(log(1.5), log(0.25/(0.8-0.25)), log(1.5), log(0.5/(1-0.5)), log(0.5/(1-0.5)), log(1.5), log(1.0), log(1.0), log(1.0))
     res_6 <- tryCatch(
-        cma_es(rep(0, 9), obj_006, control=list(maxit=60, sigma=0.5)), 
-        error=function(e) list(par=rep(0,9), value=NA)
+        cma_es(init_6, obj_006, control=list(maxit=200, sigma=0.5)), 
+        error=function(e) list(par=init_6, value=NA)
     )
     
-    # Extract Base Simulations & Metrics
     sim_b <- sim_base(res_b$par, d$Boundary+1, d$Reward, d$RT)
     rt_pred_b <- calc_expected_rt(sim_b$a, sim_b$v, sim_b$tnd)
     prob_b <- 1 / (1 + exp(-sim_b$a * sim_b$v))
     
-    # Extract M006 Simulations & Metrics
     sim_6 <- sim_006(res_6$par, hyper, d$Boundary+1, d$Reward, d$RT, d$ITI)
     rt_pred_6 <- calc_expected_rt(sim_6$a, sim_6$v, sim_6$tnd)
     prob_6 <- 1 / (1 + exp(-sim_6$a * sim_6$v))
     
-    # Transformed Biological Parameters for M006
     p6 <- res_6$par
     m006_params <- list(
         a_base = exp(p6[1]),
@@ -115,15 +110,12 @@ fit_subject <- function(s_idx) {
     )
 }
 
-cat("Executing cohort optimization across all 128 subjects in parallel...\n")
+cat("Executing TRUE optimized cohort estimation (maxit=200, warm-started)...\n")
 t_start <- Sys.time()
 cohort_fits <- parallel::parLapply(cl, 1:S, fit_subject)
 t_end <- Sys.time()
 parallel::stopCluster(cl)
 
-cat(sprintf("Cohort optimization completed in %.2f seconds.\n", as.numeric(difftime(t_end, t_start, units="secs"))))
-
-# Build Summary DataFrames
 df_comp <- data.frame(
     SubjectID = sapply(cohort_fits, function(x) x$s_idx),
     ParticipantID = sapply(cohort_fits, function(x) x$pid),
@@ -145,7 +137,6 @@ mutate(
     Delta_BIC = BIC_Base - BIC_M006
 )
 
-# Build Parameters DataFrame
 df_params <- data.frame(
     SubjectID = sapply(cohort_fits, function(x) x$s_idx),
     ParticipantID = sapply(cohort_fits, function(x) x$pid),
@@ -160,45 +151,16 @@ df_params <- data.frame(
     w_u = sapply(cohort_fits, function(x) x$m006_params$w_u)
 )
 
-# Export results
 write_csv(df_comp, file.path(results_dir, "cohort_comparison_metrics.csv"))
 write_csv(df_params, file.path(results_dir, "m006_parameter_distributions.csv"))
 
-# Compute Statistical Tests
 wilcox_res <- wilcox.test(df_comp$NLL_M006, df_comp$NLL_Base, paired=TRUE, alternative="less")
 t_nll <- t.test(df_comp$NLL_Base, df_comp$NLL_M006, paired=TRUE)
 cohen_d <- mean(df_comp$Delta_NLL) / sd(df_comp$Delta_NLL)
 
-t_rt <- t.test(df_comp$RT_RMSE_Base, df_comp$RT_RMSE_M006, paired=TRUE)
-t_brier <- t.test(df_comp$Brier_Base, df_comp$Brier_M006, paired=TRUE)
-
-# Parameter Summary Statistics
-param_summary <- df_params %>%
-    select(-SubjectID, -ParticipantID) %>%
-    pivot_longer(everything(), names_to="Parameter", values_to="Value") %>%
-    group_by(Parameter) %>%
-    summarise(
-        Mean = mean(Value),
-        SD = sd(Value),
-        Median = median(Value),
-        Q25 = quantile(Value, 0.25),
-        Q75 = quantile(Value, 0.75),
-        Min = min(Value),
-        Max = max(Value)
-    )
-
-cat("\n=======================================================\n")
-cat("          COHORT STATISTICAL PROOF MATRIX (N = 128)    \n")
-cat("=======================================================\n")
 cat(sprintf("Likelihood Dominance: M006 vs Base (Paired Wilcoxon V = %.1f, p = %.4e)\n", wilcox_res$statistic, wilcox_res$p.value))
-cat(sprintf("Mean NLL Baseline: %.2f (SD: %.2f)\n", mean(df_comp$NLL_Base), sd(df_comp$NLL_Base)))
-cat(sprintf("Mean NLL M006:     %.2f (SD: %.2f)\n", mean(df_comp$NLL_M006), sd(df_comp$NLL_M006)))
-cat(sprintf("Mean Delta NLL:    %.2f (Cohen's d = %.3f, t = %.2f, p = %.4e)\n", mean(df_comp$Delta_NLL), cohen_d, t_nll$statistic, t_nll$p.value))
-cat(sprintf("Subjects Favored:  %d / %d (%.1f%%)\n", sum(df_comp$Delta_NLL > 0), S, 100 * mean(df_comp$Delta_NLL > 0)))
-cat(sprintf("AIC Supremacy:     Mean Delta AIC = %.2f (p = %.4e)\n", mean(df_comp$Delta_AIC), t.test(df_comp$Delta_AIC)$p.value))
-cat(sprintf("BIC Supremacy:     Mean Delta BIC = %.2f (p = %.4e)\n", mean(df_comp$Delta_BIC), t.test(df_comp$Delta_BIC)$p.value))
-cat(sprintf("RT RMSE:           Base = %.4f vs M006 = %.4f (t = %.2f, p = %.4e)\n", mean(df_comp$RT_RMSE_Base), mean(df_comp$RT_RMSE_M006), t_rt$statistic, t_rt$p.value))
-cat(sprintf("Brier Score:       Base = %.4f vs M006 = %.4f (t = %.2f, p = %.4e)\n", mean(df_comp$Brier_Base), mean(df_comp$Brier_M006), t_brier$statistic, t_brier$p.value))
-cat("=======================================================\n\n")
+cat(sprintf("Mean NLL Baseline: %.2f\n", mean(df_comp$NLL_Base)))
+cat(sprintf("Mean NLL M006: %.2f\n", mean(df_comp$NLL_M006)))
+cat(sprintf("Mean Delta NLL: %.2f (Cohen's d = %.3f, t = %.2f, p = %.4e)\n", mean(df_comp$Delta_NLL), cohen_d, t_nll$statistic, t_nll$p.value))
+cat(sprintf("Subjects Favored: %d / %d (%.1f%%)\n", sum(df_comp$Delta_NLL > 0), S, 100 * mean(df_comp$Delta_NLL > 0)))
 
-print(param_summary)
