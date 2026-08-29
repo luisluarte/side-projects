@@ -1,0 +1,6 @@
+=== CLASSIFICATION & PREDICTION METRICS (N=128) ===
+# A tibble: 2 × 6
+  Model         Mean_PR_AUC Mean_ROC_AUC Mean_MCC Mean_Brier Mean_RT_RMSE
+  <chr>               <dbl>        <dbl>    <dbl>      <dbl>        <dbl>
+1 Baseline Wald       0.768        0.771   0.424       0.198        0.709
+2 Reg. Hybrid         0.577        0.522   0.0372      0.417        0.587
