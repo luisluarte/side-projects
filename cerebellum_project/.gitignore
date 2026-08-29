@@ -3,6 +3,16 @@
 *.so
 *.dll
 *.dylib
+*.exe
+q_learning_ddm
+q_learning_ddm_gq
+q_learning_ddm_dynamic
+q_learning_ddm_dynamic_gq
+
+# Large archive and binary model files
+*.tar.gz
+*.rds
+*.zip
 
 # R artifacts
 .Rhistory
@@ -28,4 +38,3 @@ scratch/
 !data/
 !data/**
 !data/**/*.csv
-gcp_transfer.tar.gz

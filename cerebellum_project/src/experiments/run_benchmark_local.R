@@ -1,8 +1,16 @@
 pacman::p_load(tidyverse, Rcpp, cmaes)
-Rcpp::sourceCpp("magi_all_models.cpp")
 
-cat("Loading data...\n")
-dat_raw <- read_csv("data/raw/behavioral_compilate.csv", show_col_types=F)
+# Locate repository root
+repo_root <- ifelse(file.exists("src/models/magi_all_models.cpp"), ".", "../..")
+cpp_path <- file.path(repo_root, "src/models/magi_all_models.cpp")
+data_path <- file.path(repo_root, "data/raw/behavioral_compilate.csv")
+results_dir <- file.path(repo_root, "results")
+dir.create(results_dir, showWarnings = FALSE, recursive = TRUE)
+
+Rcpp::sourceCpp(cpp_path)
+
+cat("Loading empirical data from:", data_path, "\n")
+dat_raw <- read_csv(data_path, show_col_types=FALSE)
 dat_raw$Reward <- dat_raw$F
 dat_clean <- dat_raw %>% arrange(participant_id, ttp) %>%
     group_by(participant_id) %>%
@@ -11,19 +19,18 @@ dat_clean <- dat_raw %>% arrange(participant_id, ttp) %>%
     mutate(ITI = ifelse(is.na(ITI) | ITI < 0, median(ITI, na.rm=TRUE), ITI),
            participant_idx = as.integer(as.factor(participant_id)))
 
-# Limit to first 12 subjects to run locally in a reasonable time
+# Benchmark subset of subjects for fast local evaluation
 S <- 12
 d_list <- split(dat_clean, dat_clean$participant_idx)[1:S]
-
 hyper <- c(4.64e-4, 5e-4, 18)
 
-cat("Running optimizations...\n")
+cat(sprintf("Optimizing across %d subjects (Baseline, M005, M006)...\n", S))
 res_list <- list()
 trial_list <- list()
 
 for (s_idx in 1:S) {
     d <- d_list[[s_idx]]
-    cat(sprintf("Subject %d...\n", s_idx))
+    cat(sprintf("Processing Subject %d/%d...\n", s_idx, S))
     
     # ---------------- BASE ----------------
     obj_base <- function(p) { v <- get_nll_base(p, d$Boundary+1, d$Reward, d$RT); if(is.nan(v)) 1e6 else v }
@@ -79,9 +86,9 @@ for (s_idx in 1:S) {
 }
 
 df_subj <- do.call(rbind, res_list)
-write_csv(df_subj, "subject_metrics_real.csv")
+write_csv(df_subj, file.path(results_dir, "subject_metrics_real.csv"))
 
 df_trial <- do.call(rbind, trial_list)
-write_csv(df_trial, "trial_metrics_real_006.csv")
+write_csv(df_trial, file.path(results_dir, "trial_metrics_real_006.csv"))
 
-cat("Saved metrics.\n")
+cat("Optimization and simulation results saved to results/\n")
