@@ -2,6 +2,7 @@
 #include <cmath>
 #include <vector>
 #include <random>
+#include <algorithm>
 
 using namespace Rcpp;
 
@@ -67,7 +68,7 @@ DataFrame sim_base(const std::vector<double>& phi, const IntegerVector& resp, co
 
 
 // ---------------------------------------------------------
-// MODEL 005: Static Opponent Process
+// MODEL 005: Static Opponent Process (Biologically Bounded)
 // ---------------------------------------------------------
 // [[Rcpp::export]]
 double get_nll_005(const std::vector<double>& phi, const std::vector<double>& hyper, const IntegerVector& resp, const NumericVector& reward, const NumericVector& rt) {
@@ -101,8 +102,14 @@ double get_nll_005(const std::vector<double>& phi, const std::vector<double>& hy
         
         prev_E = R - Q[ch]; Q[ch] += alpha_ctx * prev_E; prev_ch = ch;
         double err0 = (prev_ch == 0) ? prev_E : 0.0; double err1 = (prev_ch == 1) ? prev_E : 0.0;
-        for(int i=0; i<16; ++i) { W_PC[i] += alpha_pc * Z[i] * err0; }
-        for(int i=16; i<32; ++i) { W_PC[i] += alpha_pc * Z[i] * err1; }
+        for(int i=0; i<16; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * err0;
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
+        for(int i=16; i<32; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * err1;
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
     }
     return nll;
 }
@@ -136,15 +143,21 @@ DataFrame sim_005(const std::vector<double>& phi, const std::vector<double>& hyp
         pred_a[t] = a; Q_diff[t] = Q[1]-Q[0]; cb_diff[t] = cb1 - cb0;
         
         prev_E = R - Q[ch]; Q[ch] += alpha_ctx * prev_E; prev_ch = ch;
-        for(int i=0; i<16; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0); }
-        for(int i=16; i<32; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0); }
+        for(int i=0; i<16; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
+        for(int i=16; i<32; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
     }
     return DataFrame::create(_["v"]=pred_v, _["a"]=pred_a, _["tnd"]=tnd, _["Q_diff"]=Q_diff, _["cb_diff"]=cb_diff);
 }
 
 
 // ---------------------------------------------------------
-// MODEL 006: Continuous ITI + Epistemic Boundary
+// MODEL 006: Continuous ITI + Epistemic Boundary (Biologically Bounded)
 // ---------------------------------------------------------
 // [[Rcpp::export]]
 double get_nll_006(const std::vector<double>& phi, const std::vector<double>& hyper, const IntegerVector& resp, const NumericVector& reward, const NumericVector& rt, const NumericVector& iti) {
@@ -182,8 +195,14 @@ double get_nll_006(const std::vector<double>& phi, const std::vector<double>& hy
         nll -= std::log(wfpt_pdf(rt[t], resp[t], v_eff, a_dyn, tnd, 0.5));
         
         prev_E = R - Q[ch]; Q[ch] += alpha_ctx * prev_E; prev_ch = ch;
-        for(int i=0; i<16; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0); }
-        for(int i=16; i<32; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0); }
+        for(int i=0; i<16; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
+        for(int i=16; i<32; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
     }
     return nll;
 }
@@ -223,8 +242,14 @@ DataFrame sim_006(const std::vector<double>& phi, const std::vector<double>& hyp
         pred_a[t] = a_base + w_u * conflict[t];
         
         prev_E = R - Q[ch]; Q[ch] += alpha_ctx * prev_E; prev_ch = ch;
-        for(int i=0; i<16; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0); }
-        for(int i=16; i<32; ++i) { W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0); }
+        for(int i=0; i<16; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 0) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
+        for(int i=16; i<32; ++i) { 
+            W_PC[i] += alpha_pc * Z[i] * ((prev_ch == 1) ? prev_E : 0.0);
+            W_PC[i] = std::max(-3.0, std::min(3.0, W_PC[i]));
+        }
     }
     return DataFrame::create(_["v"]=pred_v, _["a"]=pred_a, _["tnd"]=tnd, _["conflict"]=conflict);
 }
