@@ -49,6 +49,7 @@ fit <- mod$sample(
     iter_warmup = 100,      
     iter_sampling = 100,    
     adapt_engaged = TRUE,
+    init = 0,
     step_size = 0.05 
 )
 
