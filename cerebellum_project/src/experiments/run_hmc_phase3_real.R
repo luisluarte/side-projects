@@ -50,10 +50,6 @@ init_fun <- function() {
 }
 
 # The Stan model has exactly 828 parameters in the unconstrained space:
-# mu_a (1) + mu_tnd (1) + mu_v (1) + mu_res_raw (6) = 9
-# sigma (9)
-# z (9 * 90 = 810)
-# Total = 828
 total_params <- 9 + 9 + (9 * stan_data$N_subj)
 M_dense <- diag(total_params)
 
@@ -63,13 +59,13 @@ M_dense[1:9, 1:9] <- epistemic$Sigma_train
 cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
-cat("Starting HMC sampling with Empirical Priors AND Dense Metric...\n")
+cat("Starting HMC sampling with Empirical Priors AND Dense Metric (PRODUCTION RUN)...\n")
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 500,      
-    iter_sampling = 500,    
+    iter_warmup = 1000,      
+    iter_sampling = 1000,    
     metric = "dense_e",
     inv_metric = M_dense,
     adapt_engaged = TRUE,
