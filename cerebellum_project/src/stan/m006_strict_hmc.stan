@@ -11,15 +11,14 @@ data {
   
   array[N_subj] int<lower=1> start_idx;
   array[N_subj] int<lower=1> end_idx;
+  
+  // Epistemic Geometry Preconditioning Data
+  vector[9] theta_mean;
+  matrix[9, 9] L_Sigma;
 }
 parameters {
-  // Literature-grounded Group Means (Tran et al. 2021)
-  real<lower=0.11, upper=7.47> mu_a;
-  real<lower=0, upper=3.69> mu_tnd;
-  real<lower=0, upper=18.51> mu_v;
-  
-  // Uninformative Group Means for Reservoir
-  vector[6] mu_res_raw;
+  // Preconditioned, uncorrelated standard normal space for the 9 group means
+  vector[9] theta_raw;
   
   // Group Variances
   vector<lower=0>[9] sigma;
@@ -28,10 +27,21 @@ parameters {
   matrix[9, N_subj] z;
 }
 transformed parameters {
-  // Smoothly map literature priors to unbounded base for non-centered parameterization
-  real mu_a_raw = logit((mu_a - 0.11) / 7.36);
-  real mu_v_raw = logit(mu_v / 18.51);
-  real mu_tnd_raw = logit(mu_tnd / 3.69);
+  // 1. DENSE GEOMETRIC PRECONDITIONING (O(M^2) ops instead of O(N^2))
+  // We project the 9-dimensional unconstrained space into the correlated epistemic geometry.
+  vector[9] theta_unc = theta_mean + L_Sigma * theta_raw;
+  
+  // 2. UNCONSTRAINED PARAMETER EXTRACTION
+  real mu_a_unc = theta_unc[1];
+  real mu_tnd_unc = theta_unc[2];
+  real mu_v_unc = theta_unc[3];
+  
+  // 3. BOUNDED PRIOR MAPPING
+  real mu_a = 0.11 + 7.36 * inv_logit(mu_a_unc);
+  real mu_tnd = 3.69 * inv_logit(mu_tnd_unc);
+  real mu_v = 18.51 * inv_logit(mu_v_unc);
+  
+  vector[6] mu_res_raw = theta_unc[4:9];
   
   vector[N_subj] a_base_raw;
   vector[N_subj] tnd;
@@ -44,18 +54,14 @@ transformed parameters {
   vector[N_subj] w_u;
   
   for (s in 1:N_subj) {
-    a_base_raw[s] = mu_a_raw + sigma[1] * z[1, s];
+    a_base_raw[s] = mu_a_unc + sigma[1] * z[1, s];
     
-    // min_rt is pure DATA, so fmin here is perfectly safe. 50ms safety buffer.
     // INCREASED BUFFER to prevent Navarro-Fuss infinite summation explosion
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
-    // Smoothly map the unconstrained subject offset into the [0, tnd_cap] bound
-    tnd[s] = tnd_cap * inv_logit(mu_tnd_raw + sigma[2] * z[2, s]);
+    tnd[s] = tnd_cap * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
     
-    // Subject drift bounded implicitly up to 18.51
-    v_ctx[s] = 18.51 * inv_logit(mu_v_raw + sigma[3] * z[3, s]);
+    v_ctx[s] = 18.51 * inv_logit(mu_v_unc + sigma[3] * z[3, s]);
     
-    // Reservoir parameters
     alpha_ctx[s]   = inv_logit(mu_res_raw[1] + sigma[4] * z[4, s]);
     alpha_pc[s]    = inv_logit(mu_res_raw[2] + sigma[5] * z[5, s]);
     gamma[s]       = exp(mu_res_raw[3] + sigma[6] * z[6, s]);
@@ -66,19 +72,29 @@ transformed parameters {
 }
 model {
   // ----------------------------------------------------
-  // I. TRAN ET AL. (2021) EMPIRICAL PRIORS
+  // I. JACOBIAN ADJUSTMENTS FOR NON-LINEAR PRIORS
+  // ----------------------------------------------------
+  target += log(7.36) + log_inv_logit(mu_a_unc) + log1m_inv_logit(mu_a_unc);
+  target += log(3.69) + log_inv_logit(mu_tnd_unc) + log1m_inv_logit(mu_tnd_unc);
+  target += log(18.51) + log_inv_logit(mu_v_unc) + log1m_inv_logit(mu_v_unc);
+
+  // ----------------------------------------------------
+  // II. TRAN ET AL. (2021) EMPIRICAL PRIORS
   // ----------------------------------------------------
   mu_a ~ gamma(11.69, 8.333);
   mu_tnd ~ student_t(1.32, 0.44, 0.08);
   mu_v ~ normal(1.76, 1.51);
   
-  // Uninformative priors for Reservoir Latents
   mu_res_raw ~ normal(0, 2);
   sigma ~ normal(0, 0.5);
   to_vector(z) ~ std_normal();
   
+  // NOTE: theta_raw does NOT have a standard normal prior here. 
+  // Its density is implicitly defined by the empirical priors on mu_a, mu_tnd, mu_v and mu_res_raw.
+  // The L_Sigma transformation perfectly preconditions the Hamiltonian geometry for `diag_e`.
+
   // ----------------------------------------------------
-  // II. VECTORIZED CONTINUOUS LIKELIHOOD COMPUTATION
+  // III. VECTORIZED CONTINUOUS LIKELIHOOD COMPUTATION
   // ----------------------------------------------------
   vector[32] frac_alpha;
   vector[32] kappa_vec;
@@ -86,7 +102,7 @@ model {
     frac_alpha[i] = 0.1 + 0.8 * ((i - 1) / 31.0);
     kappa_vec[i]  = 0.1 + 0.89 * ((i - 1) / 31.0);
   }
-  vector[32] inv_frac_alpha = 1.0 - frac_alpha; // Pre-compute for vectorization
+  vector[32] inv_frac_alpha = 1.0 - frac_alpha; 
   
   for (s in 1:N_subj) {
     vector[2] Q = rep_vector(0.5, 2);
@@ -97,7 +113,6 @@ model {
     int prev_ch = 1;
     real prev_E = 0.0;
     
-    // Extract subject topology as a column vector for matrix algebra
     vector[32] W_exp_s = to_vector(W_exp[s]); 
     
     for (t in start_idx[s]:end_idx[s]) {
@@ -106,33 +121,26 @@ model {
       real current_iti = (iti[t] < 0) ? 1.0 : iti[t];
       real phys_decay = exp(-current_iti / tau_decay[s]);
       
-      // 1. VECTORIZED EXPANSION (Collapses millions of AD nodes)
       frac_mem = frac_alpha .* frac_mem + inv_frac_alpha .* (W_exp_s * Q[ch]);
       Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
       
-      // 2. CONTINUOUS SATURATION & SMOOTH MASK
       vector[32] W_PC_eff = 3.0 * tanh(W_PC_latent / 3.0);
       
-      // Smooth absolute substitution: sqrt(x^2 + 1e-8) prevents NaN at 0.0
       vector[32] abs_approx = sqrt(square(W_PC_eff .* Z) + 1e-8);
       vector[32] S_mask = tanh(golgi_scale[s] * abs_approx);
       
-      // 3. VECTORIZED READOUT
       vector[32] cb_components = S_mask .* W_PC_eff .* Z;
       real cb0 = sum(cb_components[1:16]);
       real cb1 = sum(cb_components[17:32]);
       
-      // 4. DRIFT & EPISTEMIC BOUNDARY INTEGRATION
       real veff = v_ctx[s] * (Q[2] - Q[1]) + gamma[s] * (cb1 - cb0);
-      real final_veff = 18.51 * tanh(veff / 18.51); // Continuous squash replacing fmax/fmin
+      real final_veff = 18.51 * tanh(veff / 18.51); 
       
-      // Smooth absolute substitution for the boundary
       real a_raw = a_base_raw[s] + w_u[s] * sqrt(square(cb0) + 1e-8) * sqrt(square(cb1) + 1e-8);
       real a_dyn = 0.11 + 7.36 / (1.0 + exp(-a_raw));
       
       target += wiener_lpdf(rt[t] | a_dyn, tnd[s], 0.5, final_veff);
       
-      // 5. VECTORIZED PLASTICITY UPDATE
       prev_E = R - Q[ch];
       Q[ch] += alpha_ctx[s] * prev_E;
       prev_ch = ch;
@@ -141,7 +149,7 @@ model {
       if (ch == 1) err_sig[1:16] = rep_vector(prev_E, 16);
       else err_sig[17:32] = rep_vector(prev_E, 16);
       
-      W_PC_latent += alpha_pc[s] * Z .* err_sig; // Unbounded latent integration
+      W_PC_latent += alpha_pc[s] * Z .* err_sig;
     }
   }
 }

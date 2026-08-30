@@ -2,7 +2,7 @@ library(cmdstanr)
 library(dplyr)
 library(readr)
 
-cat("Initializing CmdStanR (Phase III: Empirical Literature Priors)...\n")
+cat("Phase IV (REDUX): Ultra-Fast Diag-Metric Preconditioning Loop...\n")
 
 dat_raw <- read_csv("data/raw/behavioral_compilate.csv", show_col_types=FALSE)
 epistemic <- readRDS("results/epistemic_geometry.rds")
@@ -35,43 +35,34 @@ stan_data <- list(
     min_rt = min_rt_df$min_rt,
     W_exp = matrix(rnorm(max(test_dat$subj_idx) * 32, 0, 1), nrow=max(test_dat$subj_idx), ncol=32),
     start_idx = subj_indices$start_idx,
-    end_idx = subj_indices$end_idx
+    end_idx = subj_indices$end_idx,
+    
+    # 9-Dimensional Epistemic Preconditioning geometry
+    theta_mean = epistemic$theta_train_mean,
+    L_Sigma = t(chol(epistemic$Sigma_train))
 )
 
 init_fun <- function() {
     list(
-        mu_a = runif(1, 1.0, 1.5),
-        mu_tnd = runif(1, 0.05, 0.15),
-        mu_v = runif(1, 1.0, 2.0),
-        mu_res_raw = rnorm(6, 0, 0.1),
+        theta_raw = rnorm(9, 0, 0.01),
         sigma = runif(9, 0.01, 0.05),
         z = matrix(rnorm(9 * stan_data$N_subj, 0, 0.01), nrow=9, ncol=stan_data$N_subj)
     )
 }
 
-# The Stan model has exactly 828 parameters in the unconstrained space:
-total_params <- 9 + 9 + (9 * stan_data$N_subj)
-M_dense <- diag(total_params)
-
-# Embed the Phase II Geometry (9x9) into the top-left 9x9 block for the group means
-M_dense[1:9, 1:9] <- epistemic$Sigma_train 
-
-cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
+cat("Compiling Stan model (Block-Diag Preconditioning)...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
-cat("Starting HMC sampling with Empirical Priors AND Dense Metric (PRODUCTION RUN)...\n")
+cat("Starting HMC sampling with STRICT constraints (max_treedepth=10)...\n")
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = 4,
     iter_warmup = 1000,      
     iter_sampling = 1000,    
-    metric = "dense_e",
-    inv_metric = M_dense,
+    metric = "diag_e",
     adapt_engaged = TRUE,
     init = init_fun,
-    step_size = 0.05
+    max_treedepth = 10,
+    refresh = 1
 )
-
-fit$save_object("results/hmc_phase3_fit.rds")
-print(fit$summary())
