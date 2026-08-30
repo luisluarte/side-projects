@@ -46,8 +46,9 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_raw + sigma[1] * z[1, s];
     
-    // min_rt is pure DATA, so fmin here is perfectly safe. 10ms safety buffer.
-    real tnd_cap = fmin(min_rt[s] - 0.01, 3.69);
+    // min_rt is pure DATA, so fmin here is perfectly safe. 50ms safety buffer.
+    // INCREASED BUFFER to prevent Navarro-Fuss infinite summation explosion
+    real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
     // Smoothly map the unconstrained subject offset into the [0, tnd_cap] bound
     tnd[s] = tnd_cap * inv_logit(mu_tnd_raw + sigma[2] * z[2, s]);
     

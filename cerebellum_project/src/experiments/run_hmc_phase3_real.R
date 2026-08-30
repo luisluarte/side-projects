@@ -44,7 +44,7 @@ init_fun <- function() {
         mu_tnd = runif(1, 0.05, 0.15),
         mu_v = runif(1, 1.0, 2.0),
         mu_res_raw = rnorm(6, 0, 0.1),
-        sigma = runif(9, 0.05, 0.1),
+        sigma = runif(9, 0.01, 0.05),
         z = matrix(rnorm(9 * stan_data$N_subj, 0, 0.01), nrow=9, ncol=stan_data$N_subj)
     )
 }
@@ -68,8 +68,8 @@ fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 200,      
-    iter_sampling = 300,    
+    iter_warmup = 500,      
+    iter_sampling = 500,    
     metric = "dense_e",
     inv_metric = M_dense,
     adapt_engaged = TRUE,
