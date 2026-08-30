@@ -2,7 +2,7 @@ library(cmdstanr)
 library(dplyr)
 library(readr)
 
-cat("Phase IV (REDUX): Ultra-Fast Diag-Metric Preconditioning Loop...\n")
+cat("Phase IV (PRODUCTION): Full Bayesian Model Comparison...\n")
 
 dat_raw <- read_csv("data/raw/behavioral_compilate.csv", show_col_types=FALSE)
 epistemic <- readRDS("results/epistemic_geometry.rds")
@@ -53,7 +53,7 @@ init_fun <- function() {
 cat("Compiling Stan model (Block-Diag Preconditioning)...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
-cat("Starting HMC sampling with STRICT constraints (max_treedepth=10)...\n")
+cat("Starting Full Unbounded HMC sampling...\n")
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
@@ -64,5 +64,8 @@ fit <- mod$sample(
     adapt_engaged = TRUE,
     init = init_fun,
     max_treedepth = 10,
-    refresh = 1
+    refresh = 50
 )
+
+fit$save_object("results/hmc_phase3_fit.rds")
+print(fit$summary())
