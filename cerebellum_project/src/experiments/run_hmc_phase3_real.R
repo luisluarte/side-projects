@@ -2,7 +2,7 @@ library(cmdstanr)
 library(dplyr)
 library(readr)
 
-cat("Initializing CmdStanR (Phase III: Hamiltonian Integration)...\n")
+cat("Initializing CmdStanR (Phase III: Empirical Literature Priors)...\n")
 
 dat_raw <- read_csv("data/raw/behavioral_compilate.csv", show_col_types=FALSE)
 epistemic <- readRDS("results/epistemic_geometry.rds")
@@ -35,18 +35,10 @@ stan_data <- list(
     min_rt = min_rt_df$min_rt,
     W_exp = matrix(rnorm(max(test_dat$subj_idx) * 32, 0, 1), nrow=max(test_dat$subj_idx), ncol=32),
     start_idx = subj_indices$start_idx,
-    end_idx = subj_indices$end_idx,
-    
-    L_train = epistemic$L_train,
-    sigma_train = as.numeric(epistemic$sigma_train),
-    theta_train_mean = as.numeric(epistemic$theta_train_mean)
+    end_idx = subj_indices$end_idx
 )
 
-total_params <- 9 + (9 * stan_data$N_subj)
-M_dense <- diag(total_params)
-M_dense[1:9, 1:9] <- epistemic$Sigma_train 
-
-cat("Compiling Stan model...\n")
+cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
 cat("Starting HMC sampling...\n")
@@ -56,14 +48,8 @@ fit <- mod$sample(
     parallel_chains = 4,
     iter_warmup = 100,      
     iter_sampling = 100,    
-    metric = "dense_e",
-    inv_metric = M_dense,
-    init = function() {
-        list(mu_raw = as.numeric(epistemic$theta_train_mean), 
-             z = matrix(0, nrow=9, ncol=stan_data$N_subj))
-    },
     adapt_engaged = TRUE,
-    step_size = 0.01 
+    step_size = 0.05 
 )
 
 fit$save_object("results/hmc_phase3_fit.rds")
