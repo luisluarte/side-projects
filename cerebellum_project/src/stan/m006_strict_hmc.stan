@@ -79,7 +79,7 @@ functions {
         real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
         real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
-        real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb1 - cb0);
+        real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb0 - cb1);
         
         // Accumulate parameters for vectorized wiener lpdf
         real veff_raw = 18.51 * tanh(veff_scaled); 

@@ -46,7 +46,7 @@ model {
     int s = subj[t];
     int ch = resp[t];
     real R = reward[t];
-    real veff = v_ctx[s] * (Q[s,2] - Q[s,1]);
+    real veff = v_ctx[s] * (Q[s,1] - Q[s,2]);
     if (abs(veff) < 1e-4) {
       veff = veff >= 0 ? 1e-4 : -1e-4;
     }
@@ -62,7 +62,7 @@ generated quantities {
     int s = subj[t];
     int ch = resp[t];
     real R = reward[t];
-    real veff = v_ctx[s] * (Q[s,2] - Q[s,1]);
+    real veff = v_ctx[s] * (Q[s,1] - Q[s,2]);
     if (abs(veff) < 1e-4) veff = veff >= 0 ? 1e-4 : -1e-4;
     real veff_obs = (ch == 1) ? veff : -veff;
     log_lik[t] = wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff_obs);
