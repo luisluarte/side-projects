@@ -23,7 +23,7 @@ parameters {
 }
 transformed parameters {
   vector[N_subj] a = exp(mu_a_raw + sigma_a * z_a);
-  vector[N_subj] tnd = to_vector(min_rt) .* (1.0 ./ (1.0 + exp(-(mu_tnd_raw + sigma_tnd * z_tnd))));
+  vector[N_subj] tnd = 0.01 + (to_vector(min_rt) - 0.05 - 0.01) .* (1.0 ./ (1.0 + exp(-(mu_tnd_raw + sigma_tnd * z_tnd))));
   vector[N_subj] v_ctx = exp(mu_v_raw + sigma_v * z_v);
   vector[N_subj] alpha_ctx = 1.0 ./ (1.0 + exp(-(mu_alpha_raw + sigma_alpha * z_alpha)));
 }

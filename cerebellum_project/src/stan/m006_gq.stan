@@ -55,7 +55,7 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_unc + sigma[1] * z[1, s];
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
-    tnd[s] = tnd_cap * inv_logit(theta_unc[2] + sigma[2] * z[2, s]);
+    tnd[s] = 0.01 + (tnd_cap - 0.01) * inv_logit(theta_unc[2] + sigma[2] * z[2, s]);
     v_ctx[s] = 18.51 * inv_logit(theta_unc[3] + sigma[3] * z[3, s]);
     alpha_ctx[s]   = inv_logit(theta_unc[4] + sigma[4] * z[4, s]);
     alpha_pc[s]    = inv_logit(theta_unc[5] + sigma[5] * z[5, s]);

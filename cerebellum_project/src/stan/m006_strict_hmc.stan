@@ -180,7 +180,7 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_unc + sigma[1] * z[1, s];
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
-    tnd[s] = tnd_cap * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
+    tnd[s] = 0.01 + (tnd_cap - 0.01) * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
     v_ctx[s] = 18.51 * inv_logit(mu_v_unc + sigma[3] * z[3, s]);
     
     alpha_ctx[s]   = inv_logit(mu_res_raw[1] + sigma[4] * z[4, s]);
