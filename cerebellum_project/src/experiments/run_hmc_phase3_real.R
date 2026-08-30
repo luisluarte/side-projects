@@ -49,9 +49,15 @@ init_fun <- function() {
     )
 }
 
-# Reconstruct the Dense Metric from the extracted geometry
-total_params <- 9 + (9 * stan_data$N_subj)
+# The Stan model has exactly 828 parameters in the unconstrained space:
+# mu_a (1) + mu_tnd (1) + mu_v (1) + mu_res_raw (6) = 9
+# sigma (9)
+# z (9 * 90 = 810)
+# Total = 828
+total_params <- 9 + 9 + (9 * stan_data$N_subj)
 M_dense <- diag(total_params)
+
+# Embed the Phase II Geometry (9x9) into the top-left 9x9 block for the group means
 M_dense[1:9, 1:9] <- epistemic$Sigma_train 
 
 cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
@@ -64,11 +70,11 @@ fit <- mod$sample(
     parallel_chains = 4,
     iter_warmup = 200,      
     iter_sampling = 300,    
-    metric = "dense_e",         # RESTORED
-    inv_metric = M_dense,       # RESTORED
+    metric = "dense_e",
+    inv_metric = M_dense,
     adapt_engaged = TRUE,
     init = init_fun,
-    step_size = 0.05            # Increased slightly to prevent micro-stepping
+    step_size = 0.05
 )
 
 fit$save_object("results/hmc_phase3_fit.rds")
