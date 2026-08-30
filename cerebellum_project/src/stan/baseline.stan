@@ -50,7 +50,8 @@ model {
     if (abs(veff) < 1e-4) {
       veff = veff >= 0 ? 1e-4 : -1e-4;
     }
-    target += wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff);
+    real veff_obs = (ch == 1) ? veff : -veff;
+    target += wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff_obs);
     Q[s, ch] += alpha_ctx[s] * (R - Q[s,ch]);
   }
 }
@@ -63,7 +64,8 @@ generated quantities {
     real R = reward[t];
     real veff = v_ctx[s] * (Q[s,2] - Q[s,1]);
     if (abs(veff) < 1e-4) veff = veff >= 0 ? 1e-4 : -1e-4;
-    log_lik[t] = wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff);
+    real veff_obs = (ch == 1) ? veff : -veff;
+    log_lik[t] = wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff_obs);
     Q[s, ch] += alpha_ctx[s] * (R - Q[s,ch]);
   }
 }

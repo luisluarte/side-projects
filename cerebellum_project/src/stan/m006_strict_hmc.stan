@@ -82,7 +82,8 @@ functions {
         real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb1 - cb0);
         
         // Accumulate parameters for vectorized wiener lpdf
-        veff_arr[t_idx] = 18.51 * tanh(veff_scaled); 
+        real veff_raw = 18.51 * tanh(veff_scaled); 
+        veff_arr[t_idx] = (ch == 1) ? veff_raw : -veff_raw;
         
         real cb0_sq = cb0 * cb0 + 1e-8;
         real cb1_sq = cb1 * cb1 + 1e-8;
