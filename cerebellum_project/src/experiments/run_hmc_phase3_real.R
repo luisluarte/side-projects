@@ -16,6 +16,12 @@ test_dat <- dat_raw %>%
     mutate(ITI = ifelse(is.na(ITI) | ITI < 0, median(ITI, na.rm=TRUE), ITI), 
            subj_idx = as.integer(as.factor(participant_id)))
 
+subj_indices <- test_dat %>%
+    mutate(row_num = row_number()) %>%
+    group_by(subj_idx) %>%
+    summarise(start_idx = min(row_num), end_idx = max(row_num)) %>%
+    arrange(subj_idx)
+
 min_rt_df <- test_dat %>% group_by(subj_idx) %>% summarise(min_rt = min(RT)) %>% arrange(subj_idx)
 
 stan_data <- list(
@@ -23,11 +29,13 @@ stan_data <- list(
     N_subj = max(test_dat$subj_idx),
     subj = test_dat$subj_idx,
     resp = test_dat$Boundary,
-    rt = test_dat$RT,
     reward = test_dat$F,
+    rt = test_dat$RT,
     iti = test_dat$ITI,
     min_rt = min_rt_df$min_rt,
     W_exp = matrix(rnorm(max(test_dat$subj_idx) * 32, 0, 1), nrow=max(test_dat$subj_idx), ncol=32),
+    start_idx = subj_indices$start_idx,
+    end_idx = subj_indices$end_idx,
     
     L_train = epistemic$L_train,
     sigma_train = as.numeric(epistemic$sigma_train),
