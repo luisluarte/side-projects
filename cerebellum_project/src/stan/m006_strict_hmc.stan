@@ -45,11 +45,9 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_raw + sigma[1] * z[1, s];
     
-    // Subject tnd bounded by min_rt and empirical cap 3.69
-    real tnd_cap = fmin(min_rt[s] - 1e-4, 3.69);
-    // Map mu_tnd into this specific subject's bounds to preserve hierarchical logic
-    real subj_mu_tnd_raw = -log(tnd_cap / fmin(mu_tnd, tnd_cap - 1e-4) - 1.0);
-    tnd[s] = tnd_cap / (1.0 + exp(-(subj_mu_tnd_raw + sigma[2] * z[2, s])));
+    // Smoothly bound subject tnd strictly below min_rt[s]
+    real tnd_max = min_rt[s] - 0.01; 
+    tnd[s] = tnd_max / (1.0 + exp(-(mu_tnd + sigma[2] * z[2, s])));
     
     // Subject drift bounded implicitly up to 18.51
     v_ctx[s] = 18.51 / (1.0 + exp(-(mu_v_raw + sigma[3] * z[3, s])));
@@ -130,8 +128,8 @@ model {
       real a_raw = a_base_raw[s] + w_u[s] * abs(cb0) * abs(cb1);
       real a_dyn = 0.11 + 7.36 / (1.0 + exp(-a_raw));
       
-      // veff bounded up to 18.51
-      real final_veff = fmax(-18.51, fmin(18.51, veff));
+      // CONTINUOUS ASYMPTOTIC SATURATION
+      real final_veff = 18.51 * tanh(veff / 18.51);
       if (abs(final_veff) < 1e-4) final_veff = final_veff >= 0 ? 1e-4 : -1e-4;
       
       target += wiener_lpdf(rt[t] | a_dyn, tnd[s], 0.5, final_veff);

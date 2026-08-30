@@ -49,19 +49,26 @@ init_fun <- function() {
     )
 }
 
+# Reconstruct the Dense Metric from the extracted geometry
+total_params <- 9 + (9 * stan_data$N_subj)
+M_dense <- diag(total_params)
+M_dense[1:9, 1:9] <- epistemic$Sigma_train 
+
 cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
-cat("Starting HMC sampling...\n")
+cat("Starting HMC sampling with Empirical Priors AND Dense Metric...\n")
 fit <- mod$sample(
     data = stan_data,
     chains = 4,
     parallel_chains = 4,
-    iter_warmup = 100,      
-    iter_sampling = 100,    
+    iter_warmup = 200,      
+    iter_sampling = 300,    
+    metric = "dense_e",         # RESTORED
+    inv_metric = M_dense,       # RESTORED
     adapt_engaged = TRUE,
     init = init_fun,
-    step_size = 0.01 
+    step_size = 0.05            # Increased slightly to prevent micro-stepping
 )
 
 fit$save_object("results/hmc_phase3_fit.rds")
