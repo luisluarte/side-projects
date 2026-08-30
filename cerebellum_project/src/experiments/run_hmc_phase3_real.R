@@ -38,6 +38,17 @@ stan_data <- list(
     end_idx = subj_indices$end_idx
 )
 
+init_fun <- function() {
+    list(
+        mu_a = runif(1, 1.0, 1.5),
+        mu_tnd = runif(1, 0.05, 0.15),
+        mu_v = runif(1, 1.0, 2.0),
+        mu_res_raw = rnorm(6, 0, 0.1),
+        sigma = runif(9, 0.05, 0.1),
+        z = matrix(rnorm(9 * stan_data$N_subj, 0, 0.01), nrow=9, ncol=stan_data$N_subj)
+    )
+}
+
 cat("Compiling Stan model with Tran et al. (2021) Priors...\n")
 mod <- cmdstan_model("src/stan/m006_strict_hmc.stan")
 
@@ -49,8 +60,8 @@ fit <- mod$sample(
     iter_warmup = 100,      
     iter_sampling = 100,    
     adapt_engaged = TRUE,
-    init = 0,
-    step_size = 0.05 
+    init = init_fun,
+    step_size = 0.01 
 )
 
 fit$save_object("results/hmc_phase3_fit.rds")
