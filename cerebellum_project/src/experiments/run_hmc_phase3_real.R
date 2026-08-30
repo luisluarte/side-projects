@@ -64,7 +64,7 @@ fit <- mod$sample(
     adapt_engaged = TRUE,
     init = init_fun,
     max_treedepth = 10,
-    refresh = 50
+    refresh = 1
 )
 
 fit$save_object("results/hmc_phase3_fit.rds")
