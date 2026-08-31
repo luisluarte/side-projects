@@ -23,7 +23,7 @@ parameters {
 }
 transformed parameters {
   vector[N_subj] a = exp(mu_a_raw + sigma_a * z_a);
-  vector[N_subj] tnd = 0.01 + (to_vector(min_rt) - 0.05 - 0.01) .* (1.0 ./ (1.0 + exp(-(mu_tnd_raw + sigma_tnd * z_tnd))));
+  vector[N_subj] tnd = to_vector(min_rt) .* (1.0 ./ (1.0 + exp(-(mu_tnd_raw + sigma_tnd * z_tnd))));
   vector[N_subj] v_ctx = exp(mu_v_raw + sigma_v * z_v);
   vector[N_subj] alpha_ctx = 1.0 ./ (1.0 + exp(-(mu_alpha_raw + sigma_alpha * z_alpha)));
 }
@@ -46,12 +46,11 @@ model {
     int s = subj[t];
     int ch = resp[t];
     real R = reward[t];
-    real veff = v_ctx[s] * (Q[s,1] - Q[s,2]);
+    real veff = v_ctx[s] * (Q[s,2] - Q[s,1]);
     if (abs(veff) < 1e-4) {
       veff = veff >= 0 ? 1e-4 : -1e-4;
     }
-    real veff_obs = (ch == 1) ? veff : -veff;
-    target += wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff_obs);
+    target += wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff);
     Q[s, ch] += alpha_ctx[s] * (R - Q[s,ch]);
   }
 }
@@ -62,10 +61,9 @@ generated quantities {
     int s = subj[t];
     int ch = resp[t];
     real R = reward[t];
-    real veff = v_ctx[s] * (Q[s,1] - Q[s,2]);
+    real veff = v_ctx[s] * (Q[s,2] - Q[s,1]);
     if (abs(veff) < 1e-4) veff = veff >= 0 ? 1e-4 : -1e-4;
-    real veff_obs = (ch == 1) ? veff : -veff;
-    log_lik[t] = wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff_obs);
+    log_lik[t] = wiener_lpdf(rt[t] | a[s], tnd[s], 0.5, veff);
     Q[s, ch] += alpha_ctx[s] * (R - Q[s,ch]);
   }
 }

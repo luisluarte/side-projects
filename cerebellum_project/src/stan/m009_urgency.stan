@@ -34,26 +34,22 @@ functions {
       vector[32] Z = rep_vector(0.0, 32);
       vector[32] W_PC_latent = rep_vector(0.0, 32);
       
-      real prev_E = 0.0;
       vector[32] W_exp_s = to_vector(W_exp[s]); 
       vector[32] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
-      real v_ctx_scaled = v_ctx[s] * 0.0540248;
-      real gamma_var_scaled = gamma_var[s] * 0.0540248;
-      real a_base = a_base_raw[s];
+      real v_ctx_s = v_ctx[s] * 0.0540248;
+      real gamma_s = gamma_var[s] * 0.0540248;
+      
+      real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw[s]);
+      real delta_max = 1.0 / phys_a_base;
+      
       real w_u_s = w_u[s];
       real tnd_s = tnd[s];
-      real alpha_ctx_s = alpha_ctx[s];
-      real alpha_pc_s = alpha_pc[s];
+      real a_c_s = alpha_ctx[s];
+      real a_pc_s = alpha_pc[s];
       
-      // Epoch 22: Replace division with static inverse multiplication
       real inv_tau = 1.0 / tau_decay[s];
-      real golgi_scale_s = golgi_scale[s];
-      
-      vector[32] W_PC_eff;
-      vector[32] eff_z;
-      vector[32] abs_approx;
-      vector[32] S_mask;
+      real g_s = golgi_scale[s];
       
       int num_trials = end_idx[s] - start_idx[s] + 1;
       vector[num_trials] a_dyn_arr;
@@ -68,35 +64,35 @@ functions {
         real phys_decay = exp(-clean_iti[t] * inv_tau);
         
         frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q[ch];
+        
+        // Native Stan tanh is AD-optimized. Do not use branchless mask.
         Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
         
-        W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
+        vector[32] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
         
-        eff_z = W_PC_eff .* Z;
-        abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
-        S_mask = tanh(golgi_scale_s * abs_approx);
+        vector[32] eff_z = W_PC_eff .* Z;
+        vector[32] abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
+        vector[32] S_mask = tanh(g_s * abs_approx);
         
         real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
         real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
-        real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb1 - cb0);
+        real veff_scaled = v_ctx_s * Q_diff + gamma_s * (cb0 - cb1);
         
-        // Accumulate parameters for vectorized wiener lpdf
-        veff_arr[t_idx] = 18.51 * tanh(veff_scaled); 
+        real veff_raw = 18.51 * tanh(veff_scaled); 
+        veff_arr[t_idx] = (ch == 1) ? veff_raw : -veff_raw;
         
         real cb0_sq = cb0 * cb0 + 1e-8;
         real cb1_sq = cb1 * cb1 + 1e-8;
-        real a_raw = a_base + w_u_s * sqrt(cb0_sq * cb1_sq);
-        a_dyn_arr[t_idx] = 0.11 + 7.36 * inv_logit(a_raw);
+        real U_epistemic = sqrt(cb0_sq * cb1_sq);
+        a_dyn_arr[t_idx] = phys_a_base + delta_max * tanh(w_u_s * U_epistemic);
         
-        prev_E = R - Q[ch];
-        real alpha_ctx_E = alpha_ctx_s * prev_E;
+        real prev_E = R - Q[ch];
+        real alpha_ctx_E = a_c_s * prev_E;
         Q[ch] += alpha_ctx_E;
-        
-        // Epoch 23: Branchless scalar tracking
         Q_diff += ch_sign[t] * alpha_ctx_E;
         
-        real alpha_E = alpha_pc_s * prev_E;
+        real alpha_E = a_pc_s * prev_E;
         if (ch == 1) {
             W_PC_latent[1:16] += alpha_E * Z[1:16];
         } else {
@@ -106,7 +102,6 @@ functions {
         t_idx += 1;
       }
       
-      // Epoch 21: Vectorized Log-Likelihood Call
       pt += wiener_lpdf(rt[start_idx[s]:end_idx[s]] | a_dyn_arr, tnd_s, 0.5, veff_arr);
     }
     return pt;
@@ -160,7 +155,7 @@ transformed parameters {
   real mu_tnd_unc = theta_unc[2];
   real mu_v_unc = theta_unc[3];
   
-  real mu_a = 0.11 + 7.36 * inv_logit(mu_a_unc);
+  real mu_a = 0.11 + 3.0 * inv_logit(mu_a_unc);
   real mu_tnd = 3.69 * inv_logit(mu_tnd_unc);
   real mu_v = 18.51 * inv_logit(mu_v_unc);
   
@@ -179,7 +174,7 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_unc + sigma[1] * z[1, s];
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
-    tnd[s] = tnd_cap * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
+    tnd[s] = 0.01 + (tnd_cap - 0.01) * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
     v_ctx[s] = 18.51 * inv_logit(mu_v_unc + sigma[3] * z[3, s]);
     
     alpha_ctx[s]   = inv_logit(mu_res_raw[1] + sigma[4] * z[4, s]);
@@ -191,7 +186,7 @@ transformed parameters {
   }
 }
 model {
-  target += log(7.36) + log_inv_logit(mu_a_unc) + log1m_inv_logit(mu_a_unc);
+  target += log(3.0) + log_inv_logit(mu_a_unc) + log1m_inv_logit(mu_a_unc);
   target += log(3.69) + log_inv_logit(mu_tnd_unc) + log1m_inv_logit(mu_tnd_unc);
   target += log(18.51) + log_inv_logit(mu_v_unc) + log1m_inv_logit(mu_v_unc);
 

@@ -40,13 +40,19 @@ functions {
       
       real v_ctx_scaled = v_ctx[s] * 0.0540248;
       real gamma_var_scaled = gamma_var[s] * 0.0540248;
-      real a_base = a_base_raw[s];
+      
+      // Calculate true physical baseline boundary
+      real a_base_raw_s = a_base_raw[s];
+      real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw_s);
+      
+      // Compute the Maximum Expansion limit based on Urgency (1 / Base)
+      real delta_max = 1.0 / phys_a_base;
+      
       real w_u_s = w_u[s];
       real tnd_s = tnd[s];
       real alpha_ctx_s = alpha_ctx[s];
       real alpha_pc_s = alpha_pc[s];
       
-      // Epoch 22: Replace division with static inverse multiplication
       real inv_tau = 1.0 / tau_decay[s];
       real golgi_scale_s = golgi_scale[s];
       
@@ -79,21 +85,20 @@ functions {
         real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
         real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
-        real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb1 - cb0);
+        real veff_scaled = v_ctx_scaled * Q_diff + gamma_var_scaled * (cb0 - cb1);
         
-        // Accumulate parameters for vectorized wiener lpdf
-        veff_arr[t_idx] = 18.51 * tanh(veff_scaled); 
+        real veff_raw = 18.51 * tanh(veff_scaled); 
+        veff_arr[t_idx] = (ch == 1) ? veff_raw : -veff_raw;
         
-        real cb0_sq = cb0 * cb0 + 1e-8;
-        real cb1_sq = cb1 * cb1 + 1e-8;
-        real a_raw = a_base + w_u_s * sqrt(cb0_sq * cb1_sq);
-        a_dyn_arr[t_idx] = 0.11 + 7.36 * inv_logit(a_raw);
+        // --- NEW URGENCY BOUNDARY CLAMP ---
+        real U_epistemic = sqrt( (cb0 * cb0 + 1e-8) * (cb1 * cb1 + 1e-8) );
+        // The dynamic boundary is clamped strictly by the subject's urgency profile
+        a_dyn_arr[t_idx] = phys_a_base + delta_max * tanh(w_u_s * U_epistemic);
+        // ----------------------------------
         
         prev_E = R - Q[ch];
         real alpha_ctx_E = alpha_ctx_s * prev_E;
         Q[ch] += alpha_ctx_E;
-        
-        // Epoch 23: Branchless scalar tracking
         Q_diff += ch_sign[t] * alpha_ctx_E;
         
         real alpha_E = alpha_pc_s * prev_E;
@@ -106,7 +111,6 @@ functions {
         t_idx += 1;
       }
       
-      // Epoch 21: Vectorized Log-Likelihood Call
       pt += wiener_lpdf(rt[start_idx[s]:end_idx[s]] | a_dyn_arr, tnd_s, 0.5, veff_arr);
     }
     return pt;
@@ -160,7 +164,7 @@ transformed parameters {
   real mu_tnd_unc = theta_unc[2];
   real mu_v_unc = theta_unc[3];
   
-  real mu_a = 0.11 + 7.36 * inv_logit(mu_a_unc);
+  real mu_a = 0.11 + 3.0 * inv_logit(mu_a_unc);
   real mu_tnd = 3.69 * inv_logit(mu_tnd_unc);
   real mu_v = 18.51 * inv_logit(mu_v_unc);
   
@@ -179,7 +183,7 @@ transformed parameters {
   for (s in 1:N_subj) {
     a_base_raw[s] = mu_a_unc + sigma[1] * z[1, s];
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
-    tnd[s] = tnd_cap * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
+    tnd[s] = 0.01 + (tnd_cap - 0.01) * inv_logit(mu_tnd_unc + sigma[2] * z[2, s]);
     v_ctx[s] = 18.51 * inv_logit(mu_v_unc + sigma[3] * z[3, s]);
     
     alpha_ctx[s]   = inv_logit(mu_res_raw[1] + sigma[4] * z[4, s]);
@@ -191,7 +195,7 @@ transformed parameters {
   }
 }
 model {
-  target += log(7.36) + log_inv_logit(mu_a_unc) + log1m_inv_logit(mu_a_unc);
+  target += log(3.0) + log_inv_logit(mu_a_unc) + log1m_inv_logit(mu_a_unc);
   target += log(3.69) + log_inv_logit(mu_tnd_unc) + log1m_inv_logit(mu_tnd_unc);
   target += log(18.51) + log_inv_logit(mu_v_unc) + log1m_inv_logit(mu_v_unc);
 
