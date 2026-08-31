@@ -1,0 +1,81 @@
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+
+\geometry{margin=1in}
+
+\title{\textbf{Symplectic Geometries in Decision Making: \\
+A Hierarchical Bayesian Analysis of Cerebellar Urgency}}
+\author{Antigravity AI (MAGI Core)}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We formalize a structural comparison between standard 1D Reinforcement Learning Drift-Diffusion Models (RL-DDMs) and a novel 32-node Cerebellar recurrent architecture (M009) incorporating an Epistemic Urgency bound. We document the Hierarchical Bayesian framework, the PSIS-LOO cross-validation mechanics acting as a Bayesian Rademacher complexity penalty, and the CMA-ES preconditioning pipeline used to accelerate Hamiltonian Monte Carlo (HMC) sampling across a high-dimensional non-centered parameter space. 
+\end{abstract}
+
+\section{Introduction}
+Human decision-making in volatile environments, such as a probabilistic reversal learning task, requires dynamic balancing of exploitation (heuristic Win-Stay/Lose-Shift) and exploration (deliberative evidence accumulation). While standard RL-DDMs collapse these processes into a single 1D prediction error scalar, biological evidence suggests that the Cerebellum physically maps the temporal dependencies of prediction errors across an array of Purkinje microzones, translating spatial sparsity into downstream cognitive uncertainty (urgency). 
+
+\section{Model Architectures}
+
+\subsection{Maximal RL-DDM (Baseline V2)}
+To ensure a rigorous null hypothesis, the baseline model was granted maximal 1D flexibility. The drift rate $v_t$ is determined by the differential Q-value of the two boundaries:
+\begin{equation}
+v_t = v_{scale} \cdot (Q_1 - Q_2)
+\end{equation}
+The boundary $a_t$ dynamically contracts when confidence is high (high conflict), simulating urgency without cerebellar input:
+\begin{equation}
+a_t = a_{base} + \beta_{conflict} \cdot (1 - |Q_1 - Q_2|)
+\end{equation}
+To mimic Purkinje cell decay, $Q$-values regress to $0.5$ over the Inter-Trial Interval (ITI):
+\begin{equation}
+Q_{t} = 0.5 + (Q_{t-1} - 0.5) \cdot \exp(-ITI / \tau_{decay})
+\end{equation}
+Dual learning rates ($\alpha^+$ and $\alpha^-$) are applied asymmetrically depending on the sign of the Reward Prediction Error (RPE). 
+
+\subsection{Cerebellar Architecture (M009 Urgency)}
+In M009, the drift rate $v_t$ combines the cortical $Q_{diff}$ and the cerebellar Purkinje output (the spatial sum of the microzones $\mathcal{C}$):
+\begin{equation}
+v_t = 18.51 \cdot \tanh \left( v_{ctx} Q_{diff} + \gamma (\mathcal{C}_{B1} - \mathcal{C}_{B2}) \right)
+\end{equation}
+The active cerebellar microzones exhibit heterogeneous eligibility decay ($\kappa \in [0.1, 0.99]$), natively forming a temporal memory trace. 
+The urgency bound $a_t$ expands non-linearly when the cerebellar network detects symplectic epistemic conflict (high co-activation of opposing microzones):
+\begin{equation}
+a_t = a_{base} + \left(\frac{1}{a_{base}}\right) \cdot \tanh(w_u \cdot U_{epi})
+\end{equation}
+This $1/a_{base}$ asymptote is structurally necessary to prevent RT-RMSE explosion during highly volatile choice transitions.
+
+\section{Hierarchical Bayesian Inference}
+
+\subsection{Non-Centered Priors}
+To prevent pathological funnel geometries in the HMC No-U-Turn Sampler, all subject-level parameters are sampled from a standard normal latent space and transformed into the physical space. For a parameter $\theta$:
+\begin{equation}
+\theta_{raw} \sim \mathcal{N}(0, 1) \\
+\sigma_\theta \sim \mathcal{N}^+(0, 0.5) \\
+z_s \sim \mathcal{N}(0, 1)
+\end{equation}
+\begin{equation}
+\theta_s = \Phi(\theta_{raw} + \sigma_\theta \cdot z_s)
+\end{equation}
+where $\Phi$ is the requisite link function (e.g., $\exp$ for strict positivity or $inv\_logit$ for $[0,1]$ bounds).
+
+\subsection{CMA-ES Preconditioning}
+For M009, the 9-dimensional hyper-prior space required stabilization. We utilized a Covariance Matrix Adaptation Evolution Strategy (CMA-ES) to optimize the MAP estimate of the population parameters $\mu$ and their covariance $\Sigma$. The resulting Cholesky decomposition ($L_{\Sigma}$) and mean vector ($\mu_{CMA}$) were injected directly into the Stan data block to initialize the HMC mass matrix, effectively halving the warmup phase and eliminating divergent transitions.
+
+\section{Thermodynamic Complexity and PSIS-LOO}
+We bypass empirical Rademacher bounds by employing Pareto-Smoothed Importance Sampling Leave-One-Out Cross-Validation (PSIS-LOO). The Bayesian equivalent of the Rademacher complexity is the effective parameter penalty $p_{LOO}$:
+\begin{equation}
+p_{LOO} = \text{lppd} - \text{elpd}_{LOO}
+\end{equation}
+where $\text{lppd}$ is the log pointwise predictive density. By computing $p_{LOO}$, we structurally separate a model's true predictive power (ELPD) from its capacity to simply memorize noise via high-dimensional recurrence. 
+
+\end{document}
