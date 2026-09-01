@@ -1,0 +1,40 @@
+
+Attaching package: ‘dplyr’
+
+The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+Loading required package: Matrix
+
+Attaching package: ‘lmerTest’
+
+The following object is masked from ‘package:lme4’:
+
+    lmer
+
+The following object is masked from ‘package:stats’:
+
+    step
+
+1. Loading Posteriors and Data...
+2. Extracting Posterior Means...
+3. Forward Simulating Predictions...
+4. Computing Mixed Effect Metrics...
+
+--- MIXED EFFECTS STATISTICAL RESULTS (M006 vs Baseline) ---
+RT_RMSE|0.1155|1.3312e-02|0.5355
+Switch_ROC_AUC|0.0141|1.4116e-01|0.3148
+Switch_PR_AUC|-0.0072|6.9313e-02|-0.3898
+Switch_MCC|0.0280|4.1974e-02|0.4375
+
+Summary_Table
+# A tibble: 2 × 5
+  model    mean_rmse mean_roc mean_pr mean_mcc
+  <fct>        <dbl>    <dbl>   <dbl>    <dbl>
+1 Baseline     0.905    0.438   0.269  -0.0898
+2 M006         1.02     0.452   0.261  -0.0618
