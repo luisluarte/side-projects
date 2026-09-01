@@ -1,0 +1,12 @@
+source('src/experiments/run_mega_subject_cmaes.R')
+p <- res\
+cat('\n--- OPTIMAL MAP PARAMETERS (BIOLOGICAL) ---\n')
+cat(sprintf('a_base      = %.4f\n', p[1]))
+cat(sprintf('tnd_raw     = %.4f\n', p[2]))
+cat(sprintf('v_ctx       = %.4f\n', exp(p[3])))
+cat(sprintf('alpha_ctx   = %.4f\n', 1 / (1 + exp(-p[4]))))
+cat(sprintf('alpha_pc    = %.4f\n', 1 / (1 + exp(-p[5]))))
+cat(sprintf('gamma       = %.4f\n', exp(p[6])))
+cat(sprintf('golgi_scale = %.4f\n', exp(p[7])))
+cat(sprintf('tau_decay   = %.4f\n', exp(p[8])))
+cat(sprintf('w_u         = %.4f\n', exp(p[9])))

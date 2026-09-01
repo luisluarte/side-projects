@@ -7,7 +7,7 @@ library(PRROC)
 library(lme4)
 
 dat <- readRDS("/home/DCCS5/cerebellum_project/results/stan_data.rds")
-urg_dat <- readRDS("/home/DCCS5/cerebellum_project/results/urgency_dat_N30.rds")
+urg_dat <- readRDS("/home/DCCS5/cerebellum_project/data/processed/urgency_dat_N30.rds")
 dat$start_idx <- urg_dat$start_idx
 dat$end_idx <- urg_dat$end_idx
 dat$W_exp <- urg_dat$W_exp
