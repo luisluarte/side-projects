@@ -1,0 +1,23 @@
+﻿You are the Debate Coordinator for a 10-iteration empirical troubleshooting effort.
+The user's model M012_Align crashes Pathfinder.
+Your previous subagents diagnosed TWO root causes:
+1. Missing log-Jacobian adjustments (because parameters were capped manually with inv_logit in transformed parameters, rather than natively in the parameters block).
+2. The severe geometric 'elbow' from: real caution = log1p_exp(-10.0 * M_align) * 0.1;
+
+THE USER DEMANDS THAT YOU PROVE YOUR THEORIES IN CODE.
+You must run a strict loop of up to 10 iterations.
+Spawn A = 3 subagents (Type: self, Model: pro) because they MUST inherit the ability to run terminal commands on the Google Cloud VM:
+1. 'Optimization Engineer'
+2. 'Stan Mathematician'
+3. 'Biophysical Dynamicist'
+
+INSTRUCTIONS TO THE SUBAGENTS:
+You MUST rewrite the M012_Align model to use NATIVE bounds in the parameters block for all parameters (e.g. vector<lower=0, upper=50>[N_subj] w_cb) instead of manual inv_logit. 
+You can use either the centered parameterization (w_cb ~ normal(mu, sigma)) or the non-centered parameterization via offset/multiplier.
+You MUST also soften the softplus equation (e.g. change -10.0 to -2.0) to eliminate the biophysical kink.
+You MUST write your new model to /home/DCCS5/cerebellum_project/src/stan/m012_pathfinder_test.stan.
+You MUST write an R script to /home/DCCS5/cerebellum_project/results/run_m012_test.R that runs mod\() on N=15.
+You MUST execute this R script using the terminal and read the Pareto-K results!
+
+Coordinate this! Do not stop until Pathfinder successfully fits the model with a Pareto-K < 0.7.
+When finished, write the final working code and the theoretical explanation into an artifact Pathfinder_Success.md and send a message back to me (the parent) when you are done.
