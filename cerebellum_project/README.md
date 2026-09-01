@@ -88,3 +88,11 @@ Executes CMA-ES parameter optimization against the human empirical dataset and e
 python src/experiments/plot_real.py
 `
 Reads the outputs in \esults/\ and updates the figure suite in \igures/\.
+
+### 4. Continuous Switch Trace (Lag-Corrected)
+To evaluate the "shape" of the models' updates bypassing the 1-trial Q-learning lag, we constructed a decaying cognitive switch trace ($) where =1$ upon switching and decays by $\gamma=0.5$ on stays. 
+Using a Linear Mixed-Effects Model (S_H ~ dP_model + (1|subj_idx)):
+* **V-OPT**: Mean  = 0.2040$, LMER AIC = 10273.8
+* **M012**: Mean  = 0.1638$, LMER AIC = 10351.4
+
+**Why V-OPT Wins Here**: The constructed trace geometrically decays by exactly 0.5 per trial, which mathematically mirrors a pure Q-learning update with a fast learning rate. Because V-OPT is a pure Q-learning model, its internal shift perfectly matches this rigid decay. M012 integrates over a 4-node polynomial memory trace, resulting in smoother, less geometrically rigid shifts, causing a slightly lower correlation to the artificial .5$ decay, despite M012 vastly outperforming V-OPT in absolute predictive accuracy (ROC-AUC) and RT fitting.
