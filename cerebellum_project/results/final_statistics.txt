@@ -1,0 +1,21 @@
+=== STATISTICAL COMPARISON ===
+
+V-OPT BASELINE:
+ROC-AUC: 0.8894 
+PR-AUC : 0.8944 
+MCC    : 0.569 
+RT-RMSE: 3.3006 
+Normalized Confusion Matrix:
+       [,1]   [,2]
+[1,] 0.3872 0.1097
+[2,] 0.1059 0.3973
+
+M012 CEREBELLAR RESERVOIR:
+ROC-AUC: 0.928 
+PR-AUC : 0.9302 
+MCC    : 0.667 
+RT-RMSE: 1.9398 
+Normalized Confusion Matrix:
+       [,1]   [,2]
+[1,] 0.4103 0.0865
+[2,] 0.0800 0.4231

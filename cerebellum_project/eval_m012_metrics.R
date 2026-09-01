@@ -4,138 +4,201 @@ library(dplyr)
 library(tidyr)
 library(pROC)
 library(PRROC)
-library(lme4)
 
-dat <- readRDS("/home/DCCS5/cerebellum_project/results/stan_data.rds")
-urg_dat <- readRDS("/home/DCCS5/cerebellum_project/data/processed/urgency_dat_N30.rds")
-dat$start_idx <- urg_dat$start_idx
-dat$end_idx <- urg_dat$end_idx
-dat$W_exp <- urg_dat$W_exp
 
-fit <- readRDS("/home/DCCS5/cerebellum_project/results/fit_m012_candidate_n15.rds")
+cat("Loading Models and Data...\n")
+df_n30 <- readRDS("/home/DCCS5/cerebellum_project/data/processed/urgency_dat_N30.rds")
 
-# Extract median parameters
-dr <- as_draws_df(fit$draws())
-get_med <- function(name) median(dr[[name]])
-get_vec_med <- function(name, len) sapply(1:len, function(i) median(dr[[paste0(name, "[", i, "]")]]))
-get_mat_med <- function(name, rows, cols) {
-  mat <- matrix(0, nrow=rows, ncol=cols)
-  for(r in 1:rows) for(c in 1:cols) mat[r,c] <- median(dr[[paste0(name, "[", r, ",", c, "]")]])
-  mat
+# Load Fits
+fit_vopt <- as_draws_df(read_cmdstan_csv(list.files("/home/DCCS5/cerebellum_project/results", pattern="fit_vopt_n30-.*\\.csv", full.names=TRUE))$post_warmup_draws)
+fit_m012 <- as_draws_df(read_cmdstan_csv(list.files("/home/DCCS5/cerebellum_project/results", pattern="fit_m012_ctrl_n30-.*\\.csv", full.names=TRUE))$post_warmup_draws)
+
+# Extract Median Parameters
+get_median <- function(fit, param_name, N) {
+  unlist(sapply(1:N, function(i) median(fit[[paste0(param_name, "[", i, "]")]])))
 }
 
-mu_a_unc <- get_med("theta_unc[1]")
-mu_tnd_unc <- get_med("theta_unc[2]")
-mu_v_unc <- get_med("theta_unc[3]")
-mu_res_raw <- get_vec_med("theta_unc", 11)[4:11]
-sigma <- get_vec_med("sigma", 11)
-z <- get_mat_med("z", 11, dat$N_subj)
+# V-OPT Params
+v_base_vopt <- get_median(fit_vopt, "a_base_raw", 30)
+v_tnd_vopt <- get_median(fit_vopt, "tnd", 30)
+v_vctx_vopt <- get_median(fit_vopt, "v_ctx", 30)
+v_aw_vopt <- get_median(fit_vopt, "aw", 30)
+v_al_vopt <- get_median(fit_vopt, "al", 30)
+v_wctx_vopt <- get_median(fit_vopt, "w_ctx", 30)
+v_betamis_vopt <- get_median(fit_vopt, "beta_mismatch", 30)
 
-inv_logit <- function(x) 1/(1+exp(-x))
-log1p_exp <- function(x) log1p(exp(x))
+# M012 Params
+m_base_m012 <- get_median(fit_m012, "a_base_raw", 30)
+m_tnd_m012 <- get_median(fit_m012, "tnd", 30)
+m_vctx_m012 <- get_median(fit_m012, "v_ctx", 30)
+m_aw_m012 <- get_median(fit_m012, "aw", 30)
+m_al_m012 <- get_median(fit_m012, "al", 30)
+m_apc_m012 <- get_median(fit_m012, "alpha_pc", 30)
+m_tau_m012 <- get_median(fit_m012, "tau_decay", 30)
+m_gs_m012 <- get_median(fit_m012, "golgi_scale", 30)
+m_wcb_m012 <- get_median(fit_m012, "w_cb", 30)
+m_wctx_m012 <- get_median(fit_m012, "w_ctx", 30)
+m_betamis_m012 <- get_median(fit_m012, "beta_mismatch", 30)
+m_frac <- 0.1 + 0.8 * (0:3 / 3.0); m_inv_frac <- 1.0 - m_frac
 
-a_base_raw <- mu_a_unc + sigma[1]*z[1,]
-tnd_cap <- pmin(dat$min_rt - 0.05, 3.69)
-tnd <- 0.01 + (tnd_cap - 0.01)*inv_logit(mu_tnd_unc + sigma[2]*z[2,])
-v_ctx <- 18.51*inv_logit(mu_v_unc + sigma[3]*z[3,])
+m_kappa <- 0.1 + 0.89 * (0:3 / 3.0)
+W_exp <- matrix(rnorm(30 * 4, 0, 1), nrow=30, ncol=4) # Using the exact same W_exp as the showdown! 
+set.seed(42) # Must set exact seed used in run_final_showdown_vopt.R before W_exp generation
+W_exp <- matrix(rnorm(30 * 4, 0, 1), nrow=30, ncol=4)
 
-aw <- inv_logit(mu_res_raw[1] + sigma[4]*z[4,])
-al <- inv_logit(mu_res_raw[2] + sigma[5]*z[5,])
-alpha_pc <- inv_logit(mu_res_raw[3] + sigma[6]*z[6,])
-tau_decay <- log1p_exp(mu_res_raw[4] + sigma[7]*z[7,])
-golgi_scale <- log1p_exp(mu_res_raw[5] + sigma[8]*z[8,])
-w_cb <- log1p_exp(mu_res_raw[6] + sigma[9]*z[9,])
-w_ctx <- log1p_exp(mu_res_raw[7] + sigma[10]*z[10,])
-beta_mismatch <- log1p_exp(mu_res_raw[8] + sigma[11]*z[11,])
+cat("Simulating Trial-by-Trial Variables...\n")
+log1p_exp <- function(x) { log1p(exp(x)) }
 
-frac_alpha <- 0.1 + 0.8*(0:3)/3.0
-inv_frac_alpha <- 1.0 - frac_alpha
-kappa_vec <- 0.1 + 0.89*(0:3)/3.0
+res_list <- list()
 
-clean_iti <- ifelse(dat$iti < 0, 1.0, dat$iti)
-
-pred_ch <- numeric(dat$N_trials)
-pred_prob <- numeric(dat$N_trials)
-pred_rt <- numeric(dat$N_trials)
-
-for(s in 1:dat$N_subj) {
-  Q <- c(0.5, 0.5)
+for (s in 1:30) {
+  d_s <- df_n30 %>% filter(subj_idx == s)
+  n <- nrow(d_s)
+  
+  # V-OPT State
+  Q_v <- c(0.5, 0.5)
+  phys_a_vopt <- 0.11 + 3.0 * (1/(1+exp(-v_base_vopt[s])))
+  dmax_vopt <- 1.0 / phys_a_vopt
+  
+  # M012 State
+  Q_m <- c(0.5, 0.5)
+  phys_a_m012 <- 0.11 + 3.0 * (1/(1+exp(-m_base_m012[s])))
+  dmax_m012 <- 1.0 / phys_a_m012
   frac_mem <- rep(0, 4)
   Z <- rep(0, 4)
-  W_PC_latent <- rep(0, 4)
-  inv_W_exp <- inv_frac_alpha * dat$W_exp[s,]
+  W_PC <- rep(0, 4)
+  W_exp_s <- W_exp[s,]
+  inv_W_exp <- m_inv_frac * W_exp_s
+  inv_tau <- 1.0 / m_tau_m012[s]
   
-  phys_a_base <- 0.11 + 3.0*inv_logit(a_base_raw[s])
-  delta_max <- 1.0/phys_a_base
-  inv_tau <- 1.0/tau_decay[s]
+  rt_pred_vopt <- numeric(n)
+  ch_pred_vopt <- numeric(n)
   
-  for(t in dat$start_idx[s]:dat$end_idx[s]) {
-    ch <- dat$resp[t]
-    R <- dat$reward[t]
-    phys_decay <- exp(-clean_iti[t]*inv_tau)
-    Q <- 0.5 + (Q - 0.5)*phys_decay
-    Q_diff <- Q[1] - Q[2]
+  rt_pred_m012 <- numeric(n)
+  ch_pred_m012 <- numeric(n)
+  
+  for (t in 1:n) {
+    ch <- d_s$Boundary[t]
+    R <- d_s$F[t]
     
-    frac_mem <- frac_alpha*frac_mem + inv_W_exp*Q[ch]
-    Z <- phys_decay*(kappa_vec*Z) + tanh(frac_mem)
+    # ------------------
+    # V-OPT Forward
+    # ------------------
+    Qdiff_v <- Q_v[1] - Q_v[2]
+    M_align_v <- tanh(v_wctx_vopt[s] * Qdiff_v)
+    caution_v <- log1p_exp(-5.0 * abs(M_align_v)) * 0.1
+    a_v <- phys_a_vopt + dmax_vopt * tanh(v_betamis_vopt[s] * caution_v)
+    veff_v <- v_vctx_vopt[s] * Qdiff_v
     
-    W_PC_eff <- 3.0*tanh(W_PC_latent/3.0)
-    eff_z <- W_PC_eff*Z
-    abs_approx <- sqrt(eff_z^2 + 1e-8)
-    S_mask <- tanh(golgi_scale[s]*abs_approx)
+    rt_pred_vopt[t] <- v_tnd_vopt[s] + (a_v / (veff_v + 1e-8)) * tanh(a_v * veff_v)
+    ch_pred_vopt[t] <- 1 / (1 + exp(-2 * a_v * veff_v))
     
-    cb0 <- sum(S_mask[1:2]*eff_z[1:2])
-    cb1 <- sum(S_mask[3:4]*eff_z[3:4])
+    pe_v <- R - Q_v[ch]
+    aeff_v <- ifelse(pe_v > 0, v_aw_vopt[s], v_al_vopt[s])
+    Q_v[ch] <- Q_v[ch] + aeff_v * pe_v
+    
+    # ------------------
+    # M012 Forward
+    # ------------------
+    phys_decay <- exp(-d_s$ITI[t] * inv_tau)
+    Q_m <- 0.5 + (Q_m - 0.5) * phys_decay
+    Qdiff_m <- Q_m[1] - Q_m[2]
+    
+    frac_mem <- m_frac * frac_mem + inv_W_exp * Q_m[ch]
+    Z <- phys_decay * (m_kappa * Z) + tanh(frac_mem)
+    
+    W_PC_eff <- 3.0 * tanh(W_PC * (1/3))
+    eff_z <- W_PC_eff * Z
+    abs_app <- sqrt((eff_z * eff_z) + 1e-8)
+    S_mask <- tanh(m_gs_m012[s] * abs_app)
+    
+    cb0 <- sum(S_mask[1:2] * eff_z[1:2])
+    cb1 <- sum(S_mask[3:4] * eff_z[3:4])
     Cb_diff <- cb0 - cb1
     
-    M_align <- tanh(w_cb[s]*Cb_diff)*tanh(w_ctx[s]*Q_diff)
-    caution <- log1p_exp(-10.0*M_align)*0.1
+    M_align_m <- tanh(m_wcb_m012[s] * Cb_diff) * tanh(m_wctx_m012[s] * Qdiff_m)
+    caution_m <- log1p_exp(-10.0 * M_align_m) * 0.1
+    a_m <- phys_a_m012 + dmax_m012 * tanh(m_betamis_m012[s] * caution_m)
+    veff_m <- m_vctx_m012[s] * Qdiff_m
     
-    a_dyn <- phys_a_base + delta_max*tanh(beta_mismatch[s]*caution)
-    veff_raw <- v_ctx[s]*Q_diff
+    rt_pred_m012[t] <- m_tnd_m012[s] + (a_m / (veff_m + 1e-8)) * tanh(a_m * veff_m)
+    ch_pred_m012[t] <- 1 / (1 + exp(-2 * a_m * veff_m))
     
-    pred_prob[t] <- inv_logit(veff_raw)
-    pred_ch[t] <- ifelse(veff_raw > 0, 1, 2)
-    # Mean RT for Wiener process is a/(2v) * tanh(a*v) + tnd
-    # wait! The formulation uses bounds = a_dyn. So parameter `a` = a_dyn. And v = abs(veff)
-    # E[RT] = a/(2v) * tanh(a v) + tnd
-    if(abs(veff_raw) > 1e-6) {
-        pred_rt[t] <- tnd[s] + (a_dyn / (2*abs(veff_raw))) * tanh(abs(veff_raw)*a_dyn)
-    } else {
-        pred_rt[t] <- tnd[s] + (a_dyn^2)/2
-    }
+    pe_m <- R - Q_m[ch]
+    aeff_m <- ifelse(pe_m > 0, m_aw_m012[s], m_al_m012[s])
+    Q_m[ch] <- Q_m[ch] + aeff_m * pe_m
     
-    pe <- R - Q[ch]
-    alpha_eff <- ifelse(pe>0, aw[s], al[s])
-    Q[ch] <- Q[ch] + alpha_eff*pe
-    
-    alpha_E <- alpha_pc[s]*pe
-    if(ch == 1) {
-        W_PC_latent[1:2] <- W_PC_latent[1:2] + alpha_E*Z[1:2]
-    } else {
-        W_PC_latent[3:4] <- W_PC_latent[3:4] + alpha_E*Z[3:4]
-    }
+    alpha_E <- m_apc_m012[s] * pe_m
+    if (ch == 1) { W_PC[1:2] <- W_PC[1:2] + alpha_E * Z[1:2] }
+    else { W_PC[3:4] <- W_PC[3:4] + alpha_E * Z[3:4] }
   }
+  
+  d_s$rt_pred_vopt <- abs(rt_pred_vopt) # E[RT] can mathematically swing negative if a/v logic flips, abs handles drift symmetry
+  d_s$ch_pred_vopt <- ch_pred_vopt
+  d_s$rt_pred_m012 <- abs(rt_pred_m012)
+  d_s$ch_pred_m012 <- ch_pred_m012
+  
+  res_list[[s]] <- d_s
 }
 
-y_true <- ifelse(dat$resp == 1, 1, 0)
-roc <- roc(y_true, pred_prob, quiet=TRUE)
-pr <- pr.curve(scores.class0 = pred_prob, weights.class0 = y_true)
+df_res <- bind_rows(res_list)
+# Remove NA and outliers
+df_res <- df_res %>% filter(RT > 0, RT < 4.0)
 
-valid_rt <- !is.na(dat$rt)
-rmse <- sqrt(mean((dat$rt[valid_rt] - pred_rt[valid_rt])^2))
+# Calculate Metrics
+calc_metrics <- function(truth, probs, rt_true, rt_pred) {
+  truth_01 <- ifelse(truth == 1, 1, 0)
+  roc_obj <- pROC::roc(truth_01, probs, quiet=TRUE)
+  roc_auc <- as.numeric(pROC::auc(roc_obj))
+  
+  pr_obj <- PRROC::pr.curve(scores.class0 = probs[truth_01 == 1], scores.class1 = probs[truth_01 == 0], curve=FALSE)
+  pr_auc <- pr_obj$auc.integral
+  
+  preds <- ifelse(probs >= 0.5, 1, 0)
+  tp <- sum(preds == 1 & truth_01 == 1)
+  tn <- sum(preds == 0 & truth_01 == 0)
+  fp <- sum(preds == 1 & truth_01 == 0)
+  fn <- sum(preds == 0 & truth_01 == 1)
+  
+  mcc_den <- sqrt(as.numeric(tp + fp) * as.numeric(tp + fn) * as.numeric(tn + fp) * as.numeric(tn + fn))
+  mcc <- ifelse(mcc_den == 0, 0, ((tp * tn) - (fp * fn)) / mcc_den)
+  
+  rmse <- sqrt(mean((rt_true - rt_pred)^2))
+  
+  conf_mat <- matrix(c(tn, fp, fn, tp), nrow=2, byrow=TRUE)
+  conf_norm <- conf_mat / sum(conf_mat)
+  
+  return(list(
+    ROC_AUC = roc_auc,
+    PR_AUC = pr_auc,
+    MCC = mcc,
+    RT_RMSE = rmse,
+    CONF_NORM = conf_norm
+  ))
+}
 
-mcc_num <- sum(y_true == 1 & pred_ch == 1)*sum(y_true == 0 & pred_ch == 2) - sum(y_true == 0 & pred_ch == 1)*sum(y_true == 1 & pred_ch == 2)
-mcc_den <- sqrt(sum(y_true == 1)*sum(y_true == 0)*sum(pred_ch == 1)*sum(pred_ch == 2))
-mcc <- mcc_num / mcc_den
+met_vopt <- calc_metrics(df_res$Boundary, df_res$ch_pred_vopt, df_res$RT, df_res$rt_pred_vopt)
+met_m012 <- calc_metrics(df_res$Boundary, df_res$ch_pred_m012, df_res$RT, df_res$rt_pred_m012)
 
-cat("M012 Metrics:\n")
-cat("ROC-AUC:", roc$auc, "\n")
-cat("PR-AUC :", pr$auc.integral, "\n")
-cat("RT-RMSE:", rmse, "\n")
-cat("MCC    :", mcc, "\n")
+# Write to text file
+sink("/home/DCCS5/cerebellum_project/results/final_statistics.txt")
+cat("=== STATISTICAL COMPARISON ===\n\n")
 
-df <- data.frame(subj = factor(dat$subj), y_true = y_true, y_pred = pred_prob)
-m <- glmer(y_true ~ y_pred + (1|subj), data=df, family=binomial)
-cat("\nLMER M012:\n")
-print(summary(m)$coefficients)
+cat("V-OPT BASELINE:\n")
+cat("ROC-AUC:", round(met_vopt$ROC_AUC, 4), "\n")
+cat("PR-AUC :", round(met_vopt$PR_AUC, 4), "\n")
+cat("MCC    :", round(met_vopt$MCC, 4), "\n")
+cat("RT-RMSE:", round(met_vopt$RT_RMSE, 4), "\n")
+cat("Normalized Confusion Matrix:\n")
+print(round(met_vopt$CONF_NORM, 4))
+
+cat("\nM012 CEREBELLAR RESERVOIR:\n")
+cat("ROC-AUC:", round(met_m012$ROC_AUC, 4), "\n")
+cat("PR-AUC :", round(met_m012$PR_AUC, 4), "\n")
+cat("MCC    :", round(met_m012$MCC, 4), "\n")
+cat("RT-RMSE:", round(met_m012$RT_RMSE, 4), "\n")
+cat("Normalized Confusion Matrix:\n")
+print(round(met_m012$CONF_NORM, 4))
+sink()
+
+cat("Saved to final_statistics.txt\n")

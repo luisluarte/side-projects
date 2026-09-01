@@ -1,0 +1,4 @@
+FINAL LOO COMPARISON
+  model elpd_diff se_diff p_worse diag_diff      diag_elpd
+ model1       0.0     0.0      NA           1 k_psis > 0.7
+ model2    -271.7    23.4    1.00           1 k_psis > 0.7
