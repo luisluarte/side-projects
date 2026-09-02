@@ -34,7 +34,7 @@ setwd(here())
 
 # data --------------------------------------------------------------------
 cat("LOAD DATA")
-dat_raw <- read_rds("../../data/processed/behavioral_sample.rds")
+dat_raw <- read_rds("../../data/processed/behavioral_compilate.rds")
 cat("LOADING FITTED MODELS")
 vopt <- read_rds("../../results/fit_vopt.rds")
 m012 <- read_rds("../../results/fit_m012.rds")
@@ -59,12 +59,14 @@ dat_clean <- dat_raw %>%
     !is.na(pred_sw_vopt) &
     !is.na(pred_sw_m012)) %>%
   mutate(
-    truth = factor(ifelse(stay_switch == 1, "switch", "stay"),
-      levels = c("switch", "stay")
-    )
+    truth = factor(stay_switch, levels = c("switch", "stay"))
   )
 
 prauc_vopt <- pr_auc(dat_clean, truth = truth, pred_sw_vopt)
+prauc_m012 <- pr_auc(dat_clean, truth = truth, pred_sw_m012)
+
+prauc_vopt
+prauc_m012
 
 
 # stats -------------------------------------------------------------------
