@@ -69,7 +69,7 @@ subj <- as.numeric(
 resp <- dat %>%
   pull(Resp) %>%
   {
-	  ifelse(. == "stay", 1, 2)
+	  ifelse(. %in% c(1, 2), ., -999)
   }
 # reward
 reward <- dat %>% pull(reward)
@@ -97,7 +97,7 @@ theta_mean_m012 <- rep(0, 12)
 L_Sigma_vopt <- diag(8)
 L_Sigma_m012 <- diag(12)
 # mini expansion couse task too easy
-W_exp <- matrix(rnorm(N_subj * 4, mean = 0, sd = 1), nrow = N_subj, ncol = 4)
+W_exp <- matrix(rnorm(N_subj * 32, mean = 0, sd = 1), nrow = N_subj, ncol = 32)
 
 stan_data_vopt <- list(
   N_trials = N_trials,
