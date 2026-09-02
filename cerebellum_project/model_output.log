@@ -1,0 +1,59 @@
+LIBS
+Loading required package: pacman
+cmdstan installed at: /home/niconicoluarte/.cmdstan/cmdstan-2.39.0
+DATA PROC
+Rows: 16029 Columns: 11
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr  (1): participant_id
+dbl (10): nt, buena, Bd1, Bd2, Resp, F, prob, ttp, ttr, ttF
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+COMPILING VOPT
+COMPILING M012
+FIT VOPT
+Running MCMC with 4 parallel chains, with 8 thread(s) per chain...
+
+Chain 1 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
+Chain 2 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
+Chain 3 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
+Chain 4 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
+Warning: Chain 1 finished unexpectedly!
+
+Warning: Chain 2 finished unexpectedly!
+
+Warning: Chain 3 finished unexpectedly!
+
+Warning: Chain 4 finished unexpectedly!
+
+Warning: Use read_cmdstan_csv() to read the results of the failed chains.
+Warning messages:
+1: All chains finished unexpectedly! Use the $output(chain_id) method for more information.
+ 
+2: No chains finished successfully. Unable to retrieve the fit. 
+FIT M012
+Running MCMC with 4 parallel chains, with 8 thread(s) per chain...
+
+Chain 1 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
+Chain 2 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
+Chain 3 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
+Chain 4 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
+Warning: Chain 1 finished unexpectedly!
+
+Warning: Chain 2 finished unexpectedly!
+
+Warning: Chain 3 finished unexpectedly!
+
+Warning: Chain 4 finished unexpectedly!
+
+Warning: Use read_cmdstan_csv() to read the results of the failed chains.
+Warning messages:
+1: All chains finished unexpectedly! Use the $output(chain_id) method for more information.
+ 
+2: No chains finished successfully. Unable to retrieve the fit. 
+SAVE MODELS
+Error: No chains finished successfully. Unable to retrieve the draws.
+Execution halted
+Error: No CmdStan config files found. Set 'save_cmdstan_config=TRUE' when fitting the model.
+Error: No CmdStan config files found. Set 'save_cmdstan_config=TRUE' when fitting the model.
