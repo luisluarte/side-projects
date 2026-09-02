@@ -15,45 +15,38 @@ COMPILING M012
 FIT VOPT
 Running MCMC with 4 parallel chains, with 8 thread(s) per chain...
 
-Chain 1 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
-Chain 2 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
-Chain 3 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
-Chain 4 Exception: vopt_ss3_model_namespace::vopt_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-1017948e8f7e8.stan', line 67, column 2 to column 48)
-Warning: Chain 1 finished unexpectedly!
-
-Warning: Chain 2 finished unexpectedly!
-
-Warning: Chain 3 finished unexpectedly!
-
-Warning: Chain 4 finished unexpectedly!
-
-Warning: Use read_cmdstan_csv() to read the results of the failed chains.
-Warning messages:
-1: All chains finished unexpectedly! Use the $output(chain_id) method for more information.
- 
-2: No chains finished successfully. Unable to retrieve the fit. 
-FIT M012
-Running MCMC with 4 parallel chains, with 8 thread(s) per chain...
-
-Chain 1 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
-Chain 2 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
-Chain 3 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
-Chain 4 Exception: m012_ss3_model_namespace::m012_ss3_model: resp[1677] is 3, but must be less than or equal to 2.000000 (in '/tmp/RtmpzktN6u/model-101792fc1678e.stan', line 109, column 2 to column 48)
-Warning: Chain 1 finished unexpectedly!
-
-Warning: Chain 2 finished unexpectedly!
-
-Warning: Chain 3 finished unexpectedly!
-
-Warning: Chain 4 finished unexpectedly!
-
-Warning: Use read_cmdstan_csv() to read the results of the failed chains.
-Warning messages:
-1: All chains finished unexpectedly! Use the $output(chain_id) method for more information.
- 
-2: No chains finished successfully. Unable to retrieve the fit. 
-SAVE MODELS
-Error: No chains finished successfully. Unable to retrieve the draws.
-Execution halted
-Error: No CmdStan config files found. Set 'save_cmdstan_config=TRUE' when fitting the model.
-Error: No CmdStan config files found. Set 'save_cmdstan_config=TRUE' when fitting the model.
+Chain 1 Iteration:   1 / 600 [  0%]  (Warmup) 
+Chain 2 Iteration:   1 / 600 [  0%]  (Warmup) 
+Chain 3 Iteration:   1 / 600 [  0%]  (Warmup) 
+Chain 4 Iteration:   1 / 600 [  0%]  (Warmup) 
+Chain 1 Iteration:  10 / 600 [  1%]  (Warmup) 
+Chain 4 Iteration:  10 / 600 [  1%]  (Warmup) 
+Chain 2 Iteration:  10 / 600 [  1%]  (Warmup) 
+Chain 3 Iteration:  10 / 600 [  1%]  (Warmup) 
+Chain 4 Iteration:  20 / 600 [  3%]  (Warmup) 
+Chain 2 Iteration:  20 / 600 [  3%]  (Warmup) 
+Chain 1 Iteration:  20 / 600 [  3%]  (Warmup) 
+Chain 3 Iteration:  20 / 600 [  3%]  (Warmup) 
+Chain 4 Iteration:  30 / 600 [  5%]  (Warmup) 
+Chain 2 Iteration:  30 / 600 [  5%]  (Warmup) 
+Chain 1 Iteration:  30 / 600 [  5%]  (Warmup) 
+Chain 3 Iteration:  30 / 600 [  5%]  (Warmup) 
+Chain 4 Iteration:  40 / 600 [  6%]  (Warmup) 
+Chain 2 Iteration:  40 / 600 [  6%]  (Warmup) 
+Chain 1 Iteration:  40 / 600 [  6%]  (Warmup) 
+Chain 3 Iteration:  40 / 600 [  6%]  (Warmup) 
+Chain 2 Iteration:  50 / 600 [  8%]  (Warmup) 
+Chain 1 Iteration:  50 / 600 [  8%]  (Warmup) 
+Chain 4 Iteration:  50 / 600 [  8%]  (Warmup) 
+Chain 3 Iteration:  50 / 600 [  8%]  (Warmup) 
+Chain 2 Iteration:  60 / 600 [ 10%]  (Warmup) 
+Chain 4 Iteration:  60 / 600 [ 10%]  (Warmup) 
+Chain 3 Iteration:  60 / 600 [ 10%]  (Warmup) 
+Chain 1 Iteration:  60 / 600 [ 10%]  (Warmup) 
+Chain 3 Iteration:  70 / 600 [ 11%]  (Warmup) 
+Chain 4 Iteration:  70 / 600 [ 11%]  (Warmup) 
+Chain 2 Iteration:  70 / 600 [ 11%]  (Warmup) 
+Chain 1 Iteration:  70 / 600 [ 11%]  (Warmup) 
+Chain 3 Iteration:  80 / 600 [ 13%]  (Warmup) 
+Chain 4 Iteration:  80 / 600 [ 13%]  (Warmup) 
+Chain 2 Iteration:  80 / 600 [ 13%]  (Warmup) 
