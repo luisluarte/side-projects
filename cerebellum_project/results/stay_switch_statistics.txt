@@ -1,0 +1,75 @@
+=== STATISTICAL COMPARISON ===
+
+V-OPT BASELINE:
+ROC-AUC: 0.8355 
+PR-AUC : 0.9423 
+MCC    : 0.3882 
+RT-RMSE: 3.3102 
+Normalized Confusion Matrix:
+       [,1]   [,2]
+[1,] 0.5030 0.4970
+[2,] 0.1262 0.8738
+
+M012 CEREBELLAR RESERVOIR:
+ROC-AUC: 0.895 
+PR-AUC : 0.9651 
+MCC    : 0.5152 
+RT-RMSE: 1.9409 
+Normalized Confusion Matrix:
+       [,1]   [,2]
+[1,] 0.5514 0.4486
+[2,] 0.0761 0.9239
+
+=== PROPER MIXED-EFFECTS BINOMIAL TESTS ===
+
+Testing V-OPT vs 0.5 (chance)...
+If intercept is significantly different from 0 (log-odds of 0.5), it differs from chance.
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: vopt_pred_switch ~ 1 + (1 | subj_idx)
+   Data: df_switch
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+   1178.2    1187.6    -587.1    1174.2       845 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-1.0059 -1.0059  0.9941  0.9941  0.9941 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ subj_idx (Intercept) 0        0       
+Number of obs: 847, groups:  subj_idx, 30
+
+Fixed effects:
+            Estimate Std. Error z value Pr(>|z|)
+(Intercept)  0.01181    0.06872   0.172    0.864
+optimizer (Nelder_Mead) convergence code: 0 (OK)
+boundary (singular) fit: see help('isSingular')
+
+
+Testing M012 vs 0.5 (chance)...
+Generalized linear mixed model fit by maximum likelihood (Laplace
+  Approximation) [glmerMod]
+ Family: binomial  ( logit )
+Formula: m012_pred_switch ~ 1 + (1 | subj_idx)
+   Data: df_switch
+
+      AIC       BIC    logLik -2*log(L)  df.resid 
+   1099.8    1109.3    -547.9    1095.8       845 
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-1.9299 -0.8209  0.5182  0.8552  1.5619 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ subj_idx (Intercept) 0.7642   0.8742  
+Number of obs: 847, groups:  subj_idx, 30
+
+Fixed effects:
+            Estimate Std. Error z value Pr(>|z|)
+(Intercept)   0.1215     0.1804   0.674    0.501
+
+Direct Paired Comparison (M012 vs V-OPT)...
