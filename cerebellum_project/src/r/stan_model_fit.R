@@ -48,6 +48,7 @@ dat_raw <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
   ) %>%
   ungroup()
 write_rds(x = dat_raw, file = "../../data/processed/behavioral_compilate.rds")
+dat <- dat_raw
 
 # dat <- dat_raw %>%
 #   filter(participant_id %in% sample(
