@@ -65,8 +65,10 @@ dat_clean <- dat_raw %>%
 prauc_vopt <- pr_auc(dat_clean, truth = truth, pred_sw_vopt)
 prauc_m012 <- pr_auc(dat_clean, truth = truth, pred_sw_m012)
 
-prauc_vopt
-prauc_m012
+cat("VOPR PRAUC\n")
+print(prauc_vopt)
+cat("M012 PRAUC\n")
+print(prauc_m012)
 
 
 # stats -------------------------------------------------------------------
@@ -76,9 +78,6 @@ cat("COMPUTE LOO")
 loo_vopt <- vopt$loo()
 loo_m012 <- m012$loo()
 
-print(loo_vopt)
-print(loo_m012)
-
 cat("ELPD")
 model_comp <- loo_compare(
   list(
@@ -86,6 +85,7 @@ model_comp <- loo_compare(
     M012 = loo_m012
   )
 )
+cat("ELPD")
 print(model_comp)
 
 ## confusion matrices ------------------------------------------------------
