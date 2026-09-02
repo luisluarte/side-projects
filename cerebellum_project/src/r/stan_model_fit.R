@@ -1,15 +1,19 @@
 # libs --------------------------------------------------------------------
+cat("LIBS")
+if (!require("pacman", character.only = TRUE)) install.packages("pacman")
 pacman::p_load(
   tidyverse,
   cmdstanr,
   posterior,
   this.path
 )
+install_cmdstan()
 
 setwd(here())
 
 # data --------------------------------------------------------------------
 
+cat("DATA PROC")
 dat <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
   group_by(participant_id) %>%
   mutate(
@@ -31,11 +35,14 @@ N_subj <- length(unique(dat %>% pull(participant_id)))
 subj <- as.numeric(
   as.factor(
     dat %>% pull(participant_id)
-  ))
-#tay = 1; switch = 2
+  )
+)
+# tay = 1; switch = 2
 resp <- dat %>%
   pull(stay_switch) %>%
-  {ifelse(. == "stay", 1, 2)}
+  {
+    ifelse(. == "stay", 1, 2)
+  }
 # reward
 reward <- dat %>% pull(reward)
 rt <- dat %>% pull(rt)
@@ -62,7 +69,7 @@ theta_mean_m012 <- rep(0, 12)
 L_Sigma_vopt <- diag(8)
 L_Sigma_m012 <- diag(8)
 # mini expansion couse task too easy
-W_exp <- matrix(0, nrow=N_subj, ncol=4)
+W_exp <- matrix(0, nrow = N_subj, ncol = 4)
 
 stan_data_vopt <- list(
   N_trials = N_trials,
@@ -98,14 +105,19 @@ stan_data_m012 <- list(
 
 
 # stan models -------------------------------------------------------------
+cat("COMPILING VOPT")
 mod_vopt <- cmdstan_model(
   "../stan/vopt_ss3.stan",
-  cpp_options = list(stan_threads = TRUE))
+  cpp_options = list(stan_threads = TRUE)
+)
+cat("COMPILING M012")
 mod_m012 <- cmdstan_model(
   "../stan/m012_ss3.stan",
-  cpp_options = list(stan_threads = TRUE))
+  cpp_options = list(stan_threads = TRUE)
+)
 
 # fit ---------------------------------------------------------------------
+cat("FIT VOPT")
 fit_vopt <- mod_vopt$sample(
   data = stan_data_vopt,
   chains = 4,
@@ -115,7 +127,8 @@ fit_vopt <- mod_vopt$sample(
   iter_sampling = 300,
   refresh = 100,
   init = 0
-  )
+)
+cat("FIT M012")
 fit_m012 <- mod_m012$sample(
   data = stan_data_m012,
   chains = 4,
@@ -125,4 +138,7 @@ fit_m012 <- mod_m012$sample(
   iter_sampling = 300,
   refresh = 100,
   init = 0
-  )
+)
+cat("SAVE MODELS")
+fit_vopt$save_object(file = "../../results/fit_vopt.rds")
+fit_m012$save_object(file = "../../results/fit_m012.rds")
