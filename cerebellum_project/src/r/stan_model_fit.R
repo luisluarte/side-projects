@@ -1,31 +1,17 @@
-library(cmdstanr)
-library(dplyr)
-library(posterior)
+# libs --------------------------------------------------------------------
+pacman::p_load(
+  tidyverse,
+  cmdstanr,
+  posterior,
+  this.path
+)
 
-cat("Loading Models and Data...\n")
-df_n30 <- readRDS("/home/DCCS5/cerebellum_project/data/processed/urgency_dat_N30.rds")
-# Use N=30
-df_n30 <- df_n30
-df_n30 <- df_n30 %>% group_by(subj_idx) %>% mutate(seq_t = row_number()) %>% ungroup()
-# Re-index subjects
-df_n30$subj_new <- match(df_n30$subj_idx, unique(df_n30$subj_idx))
-N_subj <- length(unique(df_n30$subj_new))
-N_trials <- nrow(df_n30)
+setwd(here())
 
-start_idx <- integer(N_subj)
-end_idx <- integer(N_subj)
-for(s in 1:N_subj) {
-  idx <- which(df_n30$subj_new == s)
-  start_idx[s] <- min(idx)
-  end_idx[s] <- max(idx)
-}
-min_rt <- df_n30 %>% group_by(subj_new) %>% summarize(min_rt = min(RT)) %>% pull(min_rt)
+# data --------------------------------------------------------------------
 
-W_exp <- matrix(0, nrow=N_subj, ncol=4)
-theta_mean_vopt <- rep(0, 8)
-L_Sigma_vopt <- diag(8)
-theta_mean_m012 <- rep(0, 12)
-L_Sigma_m012 <- diag(12)
+dat <- read_csv("../../data/raw/behavioral_compilate.csv")
+dat
 
 stan_data_vopt <- list(
   N_trials = N_trials,
@@ -104,41 +90,41 @@ res_list <- list()
 for(s in 1:N_subj) {
   d_s <- df_n30 %>% filter(subj_new == s)
   n <- nrow(d_s)
-  
+
   Q_v <- c(0.5, 0.5)
   Q_m <- c(0.5, 0.5)
   W_exp_s <- rep(0.0, 4)
   frac_mem <- rep(0.0, 4)
   Z <- rep(0.0, 4)
   W_PC_latent <- rep(0.0, 4)
-  
+
   phys_a_vopt <- 0.11 + 3.0 * exp(v_abase[s]) / (1 + exp(v_abase[s]))
   delta_max_vopt <- 1.0 / phys_a_vopt
   phys_a_m012 <- 0.11 + 3.0 * exp(m_abase[s]) / (1 + exp(m_abase[s]))
   delta_max_m012 <- 1.0 / phys_a_m012
-  
+
   pred_sw_vopt <- numeric(n)
     q_diff_v <- numeric(n)
     q_diff_m <- numeric(n)
     z_diff_m <- numeric(n)
   pred_sw_m012 <- numeric(n)
   actual_sw <- numeric(n)
-  
+
   for(t in 1:n) {
     ch <- as.integer(d_s$Boundary[t])
     R <- as.numeric(d_s$F[t])
-    
+
     if(t > 1) {
       prev_ch <- as.integer(d_s$Boundary[t-1])
       is_switch <- ifelse(ch != prev_ch, 1, 0)
       actual_sw[t] <- is_switch
-      
+
       # V-OPT
       Q_diff_v <- Q_v[1] - Q_v[2]
       M_align_v <- tanh(v_wctx[s] * Q_diff_v)
       caution_v <- log1p(exp(-5.0 * abs(M_align_v))) * 0.1
       a_dyn_v <- phys_a_vopt + delta_max_vopt * tanh(v_betamis[s] * caution_v)
-      
+
       Q_switch_v <- Q_v[3 - prev_ch]
       Q_stay_v <- Q_v[prev_ch]
       w_start_v <- plogis(v_wbias[s])
@@ -149,22 +135,22 @@ for(s in 1:N_subj) {
       } else {
         pred_sw_vopt[t] <- (exp(-2 * veff_v * a_dyn_v * w_start_v) - 1) / (exp(-2 * veff_v * a_dyn_v) - 1)
       }
-      
+
       # M012
       Q_diff_m <- Q_m[1] - Q_m[2]
       W_PC_eff <- 3.0 * tanh(W_PC_latent * 0.33333333)
       eff_z <- W_PC_eff * Z
       abs_approx <- sqrt(eff_z * eff_z + 1e-8)
       S_mask <- tanh(m_g[s] * abs_approx)
-      
+
       cb0 <- sum(S_mask[1:2] * eff_z[1:2])
       cb1 <- sum(S_mask[3:4] * eff_z[3:4])
       Cb_diff <- cb0 - cb1
-      
+
       M_align_m <- tanh(m_wcb[s] * Cb_diff) * tanh(m_wctx[s] * Q_diff_m)
       caution_m <- log1p(exp(-10.0 * M_align_m)) * 0.1
       a_dyn_m <- phys_a_m012 + delta_max_m012 * tanh(m_betamis[s] * caution_m)
-      
+
       Q_switch_m <- Q_m[3 - prev_ch]
       Q_stay_m <- Q_m[prev_ch]
       w_start_m <- plogis(m_wbias[s])
@@ -177,23 +163,23 @@ for(s in 1:N_subj) {
         pred_sw_m012[t] <- (exp(-2 * veff_m * a_dyn_m * w_start_m) - 1) / (exp(-2 * veff_m * a_dyn_m) - 1)
       }
     }
-    
+
     # Update VOPT
     pe_v <- R - Q_v[ch]
     Q_v[ch] <- Q_v[ch] + ifelse(pe_v > 0, v_aw[s], v_al[s]) * pe_v
-    
+
     # Update M012
     iti_s <- ifelse(d_s$ITI[t] < 0, 1.0, d_s$ITI[t])
     phys_decay <- exp(-iti_s / m_tau[s])
     Q_m <- 0.5 + (Q_m - 0.5) * phys_decay
-    
+
     inv_W_exp <- m_inv_frac * W_exp_s
     frac_mem <- m_frac * frac_mem + inv_W_exp * Q_m[ch]
     Z <- phys_decay * (m_kappa * Z) + tanh(frac_mem)
-    
+
     pe_m <- R - Q_m[ch]
     Q_m[ch] <- Q_m[ch] + ifelse(pe_m > 0, m_aw[s], m_al[s]) * pe_m
-    
+
     alpha_E <- m_alphaPC[s] * pe_m
     if(ch == 1) {
       W_PC_latent[1:2] <- W_PC_latent[1:2] + alpha_E * Z[1:2]
@@ -201,7 +187,7 @@ for(s in 1:N_subj) {
       W_PC_latent[3:4] <- W_PC_latent[3:4] + alpha_E * Z[3:4]
     }
   }
-  
+
   d_s$pred_sw_vopt <- pred_sw_vopt
   d_s$pred_sw_m012 <- pred_sw_m012
   d_s$actual_sw <- actual_sw
