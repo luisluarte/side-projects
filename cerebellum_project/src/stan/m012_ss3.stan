@@ -30,11 +30,11 @@ functions {
     for (idx in 1:size(slice_subj)) {
       int s = slice_subj[idx];
       vector[2] Q = rep_vector(0.5, 2);
-      vector[4] frac_mem = rep_vector(0.0, 4);
-      vector[4] Z = rep_vector(0.0, 4);
-      vector[4] W_PC_latent = rep_vector(0.0, 4);
-      vector[4] W_exp_s = to_vector(W_exp[s]); 
-      vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
+      vector[32] frac_mem = rep_vector(0.0, 32);
+      vector[32] Z = rep_vector(0.0, 32);
+      vector[32] W_PC_latent = rep_vector(0.0, 32);
+      vector[32] W_exp_s = to_vector(W_exp[s]); 
+      vector[32] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
       real v_s = v_ctx[s];
       real w_start = inv_logit(w_bias_raw[s]);
@@ -61,13 +61,13 @@ functions {
         frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q_in;
         Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
         
-        vector[4] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
-        vector[4] eff_z = W_PC_eff .* Z;
-        vector[4] abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
-        vector[4] S_mask = tanh(g_s * abs_approx);
+        vector[32] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
+        vector[32] eff_z = W_PC_eff .* Z;
+        vector[32] abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
+        vector[32] S_mask = tanh(g_s * abs_approx);
         
-        real cb0 = dot_product(S_mask[1:2], eff_z[1:2]);
-        real cb1 = dot_product(S_mask[3:4], eff_z[3:4]);
+        real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
+        real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
         real Cb_diff = cb0 - cb1; 
         real M_align = tanh(w_cb_s * Cb_diff) * tanh(w_ctx_s * Q_diff);
@@ -94,8 +94,8 @@ functions {
             Q[ch] += alpha_eff * pe;
             
             real alpha_E = a_pc_s * pe;
-            if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; } 
-            else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+            if (ch == 1) { W_PC_latent[1:16] += alpha_E * Z[1:16]; } 
+            else { W_PC_latent[17:32] += alpha_E * Z[17:32]; }
         }
       }
     }
@@ -111,7 +111,7 @@ data {
   array[N_trials] real rt;
   array[N_trials] real iti;
   array[N_subj] real min_rt;
-  matrix[N_subj, 4] W_exp;
+  matrix[N_subj, 32] W_exp;
   
   array[N_subj] int<lower=1> start_idx;
   array[N_subj] int<lower=1> end_idx;
@@ -125,13 +125,13 @@ transformed data {
   array[N_subj] int seq_subj;
   for (s in 1:N_subj) seq_subj[s] = s;
   
-  vector[4] frac_alpha;
-  vector[4] kappa_vec;
-  for (i in 1:4) {
-    frac_alpha[i] = 0.1 + 0.8 * ((i - 1) / 3.0);
-    kappa_vec[i]  = 0.1 + 0.89 * ((i - 1) / 3.0);
+  vector[32] frac_alpha;
+  vector[32] kappa_vec;
+  for (i in 1:32) {
+    frac_alpha[i] = 0.1 + 0.8 * ((i - 1) / 31.0);
+    kappa_vec[i]  = 0.1 + 0.89 * ((i - 1) / 31.0);
   }
-  vector[4] inv_frac_alpha = 1.0 - frac_alpha; 
+  vector[32] inv_frac_alpha = 1.0 - frac_alpha; 
   
   array[N_trials] real clean_iti;
   array[N_trials] real ch_sign;
@@ -211,11 +211,11 @@ generated quantities {
   {
     for (s in 1:N_subj) {
       vector[2] Q = rep_vector(0.5, 2);
-      vector[4] frac_mem = rep_vector(0.0, 4);
-      vector[4] Z = rep_vector(0.0, 4);
-      vector[4] W_PC_latent = rep_vector(0.0, 4);
-      vector[4] W_exp_s = to_vector(W_exp[s]);
-      vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
+      vector[32] frac_mem = rep_vector(0.0, 32);
+      vector[32] Z = rep_vector(0.0, 32);
+      vector[32] W_PC_latent = rep_vector(0.0, 32);
+      vector[32] W_exp_s = to_vector(W_exp[s]);
+      vector[32] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
       real v_s = v_ctx[s];
       real w_start = inv_logit(w_bias_raw[s]);
@@ -242,13 +242,13 @@ generated quantities {
         frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q_in;
         Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
         
-        vector[4] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
-        vector[4] eff_z = W_PC_eff .* Z;
-        vector[4] abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
-        vector[4] S_mask = tanh(g_s * abs_approx);
+        vector[32] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
+        vector[32] eff_z = W_PC_eff .* Z;
+        vector[32] abs_approx = sqrt((eff_z .* eff_z) + 1e-8);
+        vector[32] S_mask = tanh(g_s * abs_approx);
         
-        real cb0 = dot_product(S_mask[1:2], eff_z[1:2]);
-        real cb1 = dot_product(S_mask[3:4], eff_z[3:4]);
+        real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
+        real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
         real Cb_diff = cb0 - cb1;
         real M_align = tanh(w_cb_s * Cb_diff) * tanh(w_ctx_s * Q_diff);
@@ -281,8 +281,8 @@ generated quantities {
             Q[ch] += alpha_eff * pe;
             
             real alpha_E = a_pc_s * pe;
-            if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; }
-            else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+            if (ch == 1) { W_PC_latent[1:16] += alpha_E * Z[1:16]; }
+            else { W_PC_latent[17:32] += alpha_E * Z[17:32]; }
         }
       }
     }
