@@ -19,14 +19,19 @@ pacman::p_load(
   posterior,
   this.path
 )
-install_cmdstan()
+
+if (!dir.exists(cmdstan_path())) {
+  install_cmdstan()
+} else {
+  message("cmdstan installed at: ", cmdstan_path())
+}
 
 setwd(here())
 
 # data --------------------------------------------------------------------
 
 cat("DATA PROC\n")
-dat <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
+dat_raw <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
   group_by(participant_id) %>%
   mutate(
     stay_switch = if_else(
@@ -41,6 +46,13 @@ dat <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
     iti = replace_na(ttp - lag(ttF, n = 1), 0)
   ) %>%
   ungroup()
+
+dat <- dat_raw %>%
+  filter(participant_id %in% sample(
+    x = unique(dat_raw$participant_id),
+    size = 10,
+    replace = FALSE
+  ))
 
 N_trials <- nrow(dat)
 N_subj <- length(unique(dat %>% pull(participant_id)))
@@ -134,10 +146,10 @@ fit_vopt <- mod_vopt$sample(
   data = stan_data_vopt,
   chains = 4,
   parallel_chains = 4,
-  threads_per_chain = 2,
+  threads_per_chain = 8,
   iter_warmup = 300,
   iter_sampling = 300,
-  refresh = 100,
+  refresh = 10,
   init = 0
 )
 cat("FIT M012\n")
@@ -145,10 +157,10 @@ fit_m012 <- mod_m012$sample(
   data = stan_data_m012,
   chains = 4,
   parallel_chains = 4,
-  threads_per_chain = 2,
+  threads_per_chain = 8,
   iter_warmup = 300,
   iter_sampling = 300,
-  refresh = 100,
+  refresh = 10,
   init = 0
 )
 cat("SAVE MODELS\n")
