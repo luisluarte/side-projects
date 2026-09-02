@@ -67,7 +67,10 @@ subj <- as.numeric(
 )
 # tay = 1; switch = 2
 resp <- dat %>%
-  pull(Resp)
+  pull(Resp) %>%
+  {
+	  ifelse(. %in% c(1, 2), ., -999)
+  }
 # reward
 reward <- dat %>% pull(reward)
 rt <- dat %>% pull(rt)
