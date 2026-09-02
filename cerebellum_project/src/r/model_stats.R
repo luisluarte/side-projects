@@ -38,44 +38,15 @@ cat("LOADING FITTED MODELS")
 vopt <- read_rds("../../results/fit_vopt.rds")
 m012 <- read_rds("../../results/fit_m012.rds")
 
-
-## extract parameters ------------------------------------------------------
-draws_vopt <- as_draws_df(vopt$draws())
-draws_m012 <- as_draws_df(m012$draws())
-get_median <- function(fit, prefix, n_subj) {
-  unlist(sapply(1:n_subj, function(i) median(fit[[paste0(prefix, "[", i, "]")]])))
-}
-N_subj <- length(unique(dat_raw$participant_id))
-
-# V-OPT Parameters
-v_abase <- get_median(draws_vopt, "a_base_raw", N_subj)
-v_vctx <- get_median(draws_vopt, "v_ctx", N_subj)
-v_wbias <- get_median(draws_vopt, "w_bias_raw", N_subj)
-v_aw <- get_median(draws_vopt, "aw", N_subj)
-v_al <- get_median(draws_vopt, "al", N_subj)
-v_wctx <- get_median(draws_vopt, "w_ctx", N_subj)
-v_betamis <- get_median(draws_vopt, "beta_mismatch", N_subj)
-# M012 Parameters
-m_abase <- get_median(draws_m012, "a_base_raw", N_subj)
-m_vctx <- get_median(draws_m012, "v_ctx", N_subj)
-m_wbias <- get_median(draws_m012, "w_bias_raw", N_subj)
-m_aw <- get_median(draws_m012, "aw", N_subj)
-m_al <- get_median(draws_m012, "al", N_subj)
-m_tau <- get_median(draws_m012, "tau", N_subj) # or tau_decay depending on what you named it
-m_alphaPC <- get_median(draws_m012, "alpha_pc", N_subj)
-m_wctx <- get_median(draws_m012, "w_ctx", N_subj)
-m_wcb <- get_median(draws_m012, "w_cb", N_subj)
-m_betamis <- get_median(draws_m012, "beta_mismatch", N_subj)
-m_g <- get_median(draws_m012, "golgi_scale", N_subj)
-
-# M012 Constants
-m_frac <- 0.1 + 0.8 * (0:3 / 3.0)
-m_inv_frac <- 1.0 - m_frac
-m_kappa <- 0.1 + 0.89 * (0:3 / 3.0)
-
 ## preds -------------------------------------------------------------------
 pred_matrix_vopt <- as_draws_matrix(vopt$draws("pred_sw"))
 pred_matrix_m012 <- as_draws_matrix(m012$draws("pred_sw"))
+
+# median probs
+vopt_preds <- vopt$summary("pred_sw", median)
+m012_preds <- m012$summary("pred_sw", median)
+dat_raw$pred_sw_vopt <- vopt_preds$median
+dat_raw$pred_sw_m012 <- m012_preds$median
 
 
 # stats -------------------------------------------------------------------

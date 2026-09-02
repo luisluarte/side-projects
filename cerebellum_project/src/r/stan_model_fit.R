@@ -10,7 +10,8 @@ if (!dir.exists(local_lib)) {
 cat("LIBS\n")
 if (!require("pacman", character.only = TRUE)) {
   install.packages("pacman",
-                   lib = local_lib)
+    lib = local_lib
+  )
   library("pacman", character.only = TRUE)
 }
 pacman::p_load(
@@ -54,6 +55,7 @@ dat <- dat_raw %>%
     size = 10,
     replace = FALSE
   ))
+write_rds(x = dat, file = "../../data/processed/behavioral_sample.rds")
 
 N_trials <- nrow(dat)
 N_subj <- length(unique(dat %>% pull(participant_id)))
