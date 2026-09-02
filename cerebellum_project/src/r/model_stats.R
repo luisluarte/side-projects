@@ -20,7 +20,8 @@ pacman::p_load(
   posterior,
   this.path,
   loo,
-  caret
+  caret,
+  yardstick
 )
 
 if (!dir.exists(cmdstan_path())) {
@@ -33,7 +34,7 @@ setwd(here())
 
 # data --------------------------------------------------------------------
 cat("LOAD DATA")
-dat_raw <- read_rds("../../data/processed/behavioral_compilate.rds")
+dat_raw <- read_rds("../../data/processed/behavioral_sample.rds")
 cat("LOADING FITTED MODELS")
 vopt <- read_rds("../../results/fit_vopt.rds")
 m012 <- read_rds("../../results/fit_m012.rds")
@@ -47,6 +48,23 @@ vopt_preds <- vopt$summary("pred_sw", median)
 m012_preds <- m012$summary("pred_sw", median)
 dat_raw$pred_sw_vopt <- vopt_preds$median
 dat_raw$pred_sw_m012 <- m012_preds$median
+
+# clean skipped trials
+dat_clean <- dat_raw %>%
+  mutate(
+    pred_sw_vopt = ifelse(pred_sw_vopt == -1.0, NA, pred_sw_vopt),
+    pred_sw_m012 = ifelse(pred_sw_m012 == -1.0, NA, pred_sw_m012)
+  ) %>%
+  filter(!is.na(stay_switch) &
+    !is.na(pred_sw_vopt) &
+    !is.na(pred_sw_m012)) %>%
+  mutate(
+    truth = factor(ifelse(stay_switch == 1, "switch", "stay"),
+      levels = c("switch", "stay")
+    )
+  )
+
+prauc_vopt <- pr_auc(dat_clean, truth = truth, pred_sw_vopt)
 
 
 # stats -------------------------------------------------------------------
@@ -69,9 +87,3 @@ model_comp <- loo_compare(
 print(model_comp)
 
 ## confusion matrices ------------------------------------------------------
-true_labels <- factor(
-  ifelse(
-    dat_raw$stay_switch == 1, "switch", "stay"
-  ),
-  levels = c("stay", "switch")
-)

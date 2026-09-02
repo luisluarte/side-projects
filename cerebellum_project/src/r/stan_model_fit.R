@@ -49,13 +49,13 @@ dat_raw <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
   ungroup()
 write_rds(x = dat_raw, file = "../../data/processed/behavioral_compilate.rds")
 
-dat <- dat_raw %>%
-  filter(participant_id %in% sample(
-    x = unique(dat_raw$participant_id),
-    size = 10,
-    replace = FALSE
-  ))
-write_rds(x = dat, file = "../../data/processed/behavioral_sample.rds")
+# dat <- dat_raw %>%
+#   filter(participant_id %in% sample(
+#     x = unique(dat_raw$participant_id),
+#     size = 10,
+#     replace = FALSE
+#   ))
+# write_rds(x = dat, file = "../../data/processed/behavioral_sample.rds")
 
 N_trials <- nrow(dat)
 N_subj <- length(unique(dat %>% pull(participant_id)))
