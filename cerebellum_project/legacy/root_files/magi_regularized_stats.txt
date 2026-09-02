@@ -1,4 +1,0 @@
-=== ELASTIC-NET REGULARIZATION RESULTS ===
-Mean Pure Cost (Reg. Hybrid): 0.1570275 
-Mean Rademacher (Reg. Hybrid): 0.146492 
-Rademacher Overfit Ratio (vs LTI Anchor 0.157): 0.9330702 

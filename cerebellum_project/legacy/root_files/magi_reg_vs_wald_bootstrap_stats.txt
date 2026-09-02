@@ -1,6 +1,0 @@
-=== REGULARIZED HYBRID vs. BASELINE WALD (3D PARETO BOOTSTRAP) ===
-Global W1 Baseline Wald: 0.1556579 
-Global W1 Reg. Hybrid: 0.07407909 
-P-Value of Supremacy (Wald < Hybrid): 0 
-Mean Delta HV: 0.0312895 
-Epsilon Indicator: 0.006991302 

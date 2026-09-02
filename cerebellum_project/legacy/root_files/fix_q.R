@@ -1,6 +1,0 @@
-q_gq_code <- readLines("src/models/q_learning_ddm_gq.stan")
-q_gq_code <- paste(q_gq_code, collapse="\n")
-q_gq_code <- gsub("v_effective", "v_drift", q_gq_code)
-q_gq_code <- gsub("w_bias;", "w_bias[s];", q_gq_code)
-q_gq_code <- gsub("w_bias\\)", "w_bias[s])", q_gq_code)
-writeLines(q_gq_code, "src/models/q_learning_ddm_gq.stan")

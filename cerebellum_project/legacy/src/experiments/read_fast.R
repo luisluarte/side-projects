@@ -1,6 +1,0 @@
-load("results_phase23.RData")
-library(glmmTMB)
-cat("--- PHASE 2 ---\n")
-summary(fit_p2)
-cat("\n--- PHASE 3 ---\n")
-summary(fit_p3)

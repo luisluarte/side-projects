@@ -1,6 +1,0 @@
-=== REGULARIZED HYBRID vs. LTI CASCADE (3D PARETO BOOTSTRAP) ===
-Global W1 LTI Cascade: 0.2874043 
-Global W1 Reg. Hybrid: 0.07087905 
-P-Value of Supremacy (LTI < Hybrid): 0 
-Mean Delta HV: 0.07087394 
-Epsilon Indicator: 0.002419343 

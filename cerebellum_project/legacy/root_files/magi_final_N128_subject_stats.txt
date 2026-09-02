@@ -1,6 +1,0 @@
-=== N=128 SUBJECT-LEVEL GCP SUPERCOMPUTER VALIDATION ===
-Global W1 Base: 0.01907709 
-Global W1 Terminal Hybrid: 0.02090316 
-P-Value of Supremacy (Base < Hybrid): 0.002 
-Mean Delta HV: 0.0001747648 
-Epsilon Indicator: 0.415082 

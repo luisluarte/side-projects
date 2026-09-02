@@ -1,4 +1,0 @@
-=== N=128 GCP SUPERCOMPUTER VALIDATION ===
-P-Value of Supremacy: 0.873 
-Mean Delta HV: -0.0004736584 
-Epsilon Indicator: 0.2256997 
