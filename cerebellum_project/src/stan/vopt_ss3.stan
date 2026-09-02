@@ -120,7 +120,11 @@ model {
 }
 generated quantities {
   vector[N_trials] log_lik;
-  for (t in 1:N_trials) log_lik[t] = 0.0;
+  vector[N_trials] pred_sw;
+  for (t in 1:N_trials) {
+      log_lik[t] = 0.0;
+      pred_sw[t] = -1.0;
+  }
   
   {
     for (s in 1:N_subj) {
@@ -154,6 +158,12 @@ generated quantities {
                real veff = (is_switch == 1) ? veff_raw : -veff_raw;
                real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
                log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+               
+               if (veff_raw == 0.0) {
+                   pred_sw[t] = w_start;
+               } else {
+                   pred_sw[t] = (exp(-2.0 * veff_raw * a_dyn * w_start) - 1.0) / (exp(-2.0 * veff_raw * a_dyn) - 1.0);
+               }
            }
         }
         
