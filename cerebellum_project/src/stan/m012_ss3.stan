@@ -57,7 +57,8 @@ functions {
         Q = 0.5 + (Q - 0.5) * phys_decay;
         real Q_diff = Q[1] - Q[2];
         
-        frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q[ch];
+        real Q_in = (ch > 0) ? Q[ch] : 0.5;
+        frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q_in;
         Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
         
         vector[4] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
@@ -76,22 +77,26 @@ functions {
         
         if (t > start_idx[s]) {
            int prev_ch = resp[t-1];
-           int is_switch = (ch != prev_ch) ? 1 : 0;
-           real Q_switch = Q[3 - prev_ch]; 
-           real Q_stay = Q[prev_ch];
-           real veff_raw = v_s * (Q_switch - Q_stay);
-           real veff = (is_switch == 1) ? veff_raw : -veff_raw;
-           real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
-           pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           if (ch > 0 && prev_ch > 0 && rt[t] > 0.0) {
+               int is_switch = (ch != prev_ch) ? 1 : 0;
+               real Q_switch = Q[3 - prev_ch]; 
+               real Q_stay = Q[prev_ch];
+               real veff_raw = v_s * (Q_switch - Q_stay);
+               real veff = (is_switch == 1) ? veff_raw : -veff_raw;
+               real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
+               pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           }
         }
         
-        real pe = R - Q[ch];
-        real alpha_eff = (pe > 0) ? aw_s : al_s;
-        Q[ch] += alpha_eff * pe;
-        
-        real alpha_E = a_pc_s * pe;
-        if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; } 
-        else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+        if (ch > 0) {
+            real pe = R - Q[ch];
+            real alpha_eff = (pe > 0) ? aw_s : al_s;
+            Q[ch] += alpha_eff * pe;
+            
+            real alpha_E = a_pc_s * pe;
+            if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; } 
+            else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+        }
       }
     }
     return pt;
@@ -101,7 +106,7 @@ data {
   int<lower=1> N_trials;
   int<lower=1> N_subj;
   array[N_trials] int<lower=1, upper=N_subj> subj;
-  array[N_trials] int<lower=1, upper=2> resp;
+  array[N_trials] int<lower=-999, upper=2> resp;
   array[N_trials] real reward;
   array[N_trials] real rt;
   array[N_trials] real iti;
@@ -229,7 +234,8 @@ generated quantities {
         Q = 0.5 + (Q - 0.5) * phys_decay;
         real Q_diff = Q[1] - Q[2];
         
-        frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q[ch];
+        real Q_in = (ch > 0) ? Q[ch] : 0.5;
+        frac_mem = frac_alpha .* frac_mem + inv_W_exp * Q_in;
         Z = phys_decay * (kappa_vec .* Z) + tanh(frac_mem);
         
         vector[4] W_PC_eff = 3.0 * tanh(W_PC_latent * 0.3333333333333333);
@@ -248,22 +254,26 @@ generated quantities {
         
         if (t > start_idx[s]) {
            int prev_ch = resp[t-1];
-           int is_switch = (ch != prev_ch) ? 1 : 0;
-           real Q_switch = Q[3 - prev_ch]; 
-           real Q_stay = Q[prev_ch];
-           real veff_raw = v_s * (Q_switch - Q_stay);
-           real veff = (is_switch == 1) ? veff_raw : -veff_raw;
-           real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
-           log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           if (ch > 0 && prev_ch > 0 && rt[t] > 0.0) {
+               int is_switch = (ch != prev_ch) ? 1 : 0;
+               real Q_switch = Q[3 - prev_ch]; 
+               real Q_stay = Q[prev_ch];
+               real veff_raw = v_s * (Q_switch - Q_stay);
+               real veff = (is_switch == 1) ? veff_raw : -veff_raw;
+               real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
+               log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           }
         }
         
-        real pe = R - Q[ch];
-        real alpha_eff = (pe > 0) ? aw_s : al_s;
-        Q[ch] += alpha_eff * pe;
-        
-        real alpha_E = a_pc_s * pe;
-        if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; }
-        else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+        if (ch > 0) {
+            real pe = R - Q[ch];
+            real alpha_eff = (pe > 0) ? aw_s : al_s;
+            Q[ch] += alpha_eff * pe;
+            
+            real alpha_E = a_pc_s * pe;
+            if (ch == 1) { W_PC_latent[1:2] += alpha_E * Z[1:2]; }
+            else { W_PC_latent[3:4] += alpha_E * Z[3:4]; }
+        }
       }
     }
   }

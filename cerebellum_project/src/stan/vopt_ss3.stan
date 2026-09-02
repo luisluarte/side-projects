@@ -39,18 +39,22 @@ functions {
         
         if (t > start_idx[s]) {
            int prev_ch = resp[t-1];
-           int is_switch = (ch != prev_ch) ? 1 : 0;
-           real Q_switch = Q[3 - prev_ch]; 
-           real Q_stay = Q[prev_ch];
-           real veff_raw = v_s * (Q_switch - Q_stay);
-           real veff = (is_switch == 1) ? veff_raw : -veff_raw;
-           real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
-           pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           if (ch > 0 && prev_ch > 0 && rt[t] > 0.0) {
+               int is_switch = (ch != prev_ch) ? 1 : 0;
+               real Q_switch = Q[3 - prev_ch]; 
+               real Q_stay = Q[prev_ch];
+               real veff_raw = v_s * (Q_switch - Q_stay);
+               real veff = (is_switch == 1) ? veff_raw : -veff_raw;
+               real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
+               pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           }
         }
         
-        real pe = R - Q[ch];
-        real alpha_eff = (pe > 0) ? aw_s : al_s;
-        Q[ch] += alpha_eff * pe;
+        if (ch > 0) {
+            real pe = R - Q[ch];
+            real alpha_eff = (pe > 0) ? aw_s : al_s;
+            Q[ch] += alpha_eff * pe;
+        }
       }
     }
     return pt;
@@ -60,7 +64,7 @@ data {
   int<lower=1> N_trials;
   int<lower=1> N_subj;
   array[N_trials] int<lower=1, upper=N_subj> subj;
-  array[N_trials] int<lower=1, upper=2> resp;
+  array[N_trials] int<lower=-999, upper=2> resp;
   array[N_trials] real reward;
   array[N_trials] real rt;
   array[N_subj] real min_rt;
@@ -142,18 +146,22 @@ generated quantities {
         
         if (t > start_idx[s]) {
            int prev_ch = resp[t-1];
-           int is_switch = (ch != prev_ch) ? 1 : 0;
-           real Q_switch = Q[3 - prev_ch]; 
-           real Q_stay = Q[prev_ch];
-           real veff_raw = v_s * (Q_switch - Q_stay);
-           real veff = (is_switch == 1) ? veff_raw : -veff_raw;
-           real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
-           log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           if (ch > 0 && prev_ch > 0 && rt[t] > 0.0) {
+               int is_switch = (ch != prev_ch) ? 1 : 0;
+               real Q_switch = Q[3 - prev_ch]; 
+               real Q_stay = Q[prev_ch];
+               real veff_raw = v_s * (Q_switch - Q_stay);
+               real veff = (is_switch == 1) ? veff_raw : -veff_raw;
+               real w_eff = (is_switch == 1) ? w_start : (1.0 - w_start);
+               log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+           }
         }
         
-        real pe = R - Q[ch];
-        real alpha_eff = (pe > 0) ? aw_s : al_s;
-        Q[ch] += alpha_eff * pe;
+        if (ch > 0) {
+            real pe = R - Q[ch];
+            real alpha_eff = (pe > 0) ? aw_s : al_s;
+            Q[ch] += alpha_eff * pe;
+        }
       }
     }
   }
