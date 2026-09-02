@@ -46,6 +46,7 @@ dat_raw <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
     iti = replace_na(ttp - lag(ttF, n = 1), 0)
   ) %>%
   ungroup()
+write_rds(x = dat_raw, file = "../../data/processed/behavioral_compilate.rds")
 
 dat <- dat_raw %>%
   filter(participant_id %in% sample(
