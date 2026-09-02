@@ -65,11 +65,11 @@ subj <- as.numeric(
     dat %>% pull(participant_id)
   )
 )
-# tay = 1; switch = 2
+# stay = 1; switch = 2
 resp <- dat %>%
   pull(Resp) %>%
   {
-	  ifelse(. %in% c(1, 2), ., -999)
+	  ifelse(. == "stay", 1, 2)
   }
 # reward
 reward <- dat %>% pull(reward)
