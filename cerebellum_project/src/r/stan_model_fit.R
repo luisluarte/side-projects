@@ -136,12 +136,14 @@ stan_data_m012 <- list(
 cat("COMPILING VOPT\n")
 mod_vopt <- cmdstan_model(
   "../stan/vopt_ss3.stan",
-  cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE),
+  force_recompile = TRUE
 )
 cat("COMPILING M012\n")
 mod_m012 <- cmdstan_model(
   "../stan/m012_ss3.stan",
-  cpp_options = list(stan_threads = TRUE)
+  cpp_options = list(stan_threads = TRUE),
+  force_recompile = TRUE
 )
 
 # fit ---------------------------------------------------------------------
