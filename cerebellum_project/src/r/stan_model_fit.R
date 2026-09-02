@@ -7,11 +7,10 @@ if (!dir.exists(local_lib)) {
 .libPaths(c(local_lib, .libPaths()))
 
 # libs --------------------------------------------------------------------
-cat("LIBS")
+cat("LIBS\n")
 if (!require("pacman", character.only = TRUE)) {
   install.packages("pacman",
-                   lib = local_lib,
-                   repos = "http://cran.us.r-project.org")
+                   lib = local_lib)
   library("pacman", character.only = TRUE)
 }
 pacman::p_load(
@@ -26,7 +25,7 @@ setwd(here())
 
 # data --------------------------------------------------------------------
 
-cat("DATA PROC")
+cat("DATA PROC\n")
 dat <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
   group_by(participant_id) %>%
   mutate(
@@ -118,19 +117,19 @@ stan_data_m012 <- list(
 
 
 # stan models -------------------------------------------------------------
-cat("COMPILING VOPT")
+cat("COMPILING VOPT\n")
 mod_vopt <- cmdstan_model(
   "../stan/vopt_ss3.stan",
   cpp_options = list(stan_threads = TRUE)
 )
-cat("COMPILING M012")
+cat("COMPILING M012\n")
 mod_m012 <- cmdstan_model(
   "../stan/m012_ss3.stan",
   cpp_options = list(stan_threads = TRUE)
 )
 
 # fit ---------------------------------------------------------------------
-cat("FIT VOPT")
+cat("FIT VOPT\n")
 fit_vopt <- mod_vopt$sample(
   data = stan_data_vopt,
   chains = 4,
@@ -141,7 +140,7 @@ fit_vopt <- mod_vopt$sample(
   refresh = 100,
   init = 0
 )
-cat("FIT M012")
+cat("FIT M012\n")
 fit_m012 <- mod_m012$sample(
   data = stan_data_m012,
   chains = 4,
@@ -152,6 +151,6 @@ fit_m012 <- mod_m012$sample(
   refresh = 100,
   init = 0
 )
-cat("SAVE MODELS")
+cat("SAVE MODELS\n")
 fit_vopt$save_object(file = "../../results/fit_vopt.rds")
 fit_m012$save_object(file = "../../results/fit_m012.rds")
