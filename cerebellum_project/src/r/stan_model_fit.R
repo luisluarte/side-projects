@@ -91,7 +91,7 @@ theta_mean_vopt <- rep(0, 8)
 theta_mean_m012 <- rep(0, 12)
 # identity while I find a way to inform it
 L_Sigma_vopt <- diag(8)
-L_Sigma_m012 <- diag(8)
+L_Sigma_m012 <- diag(12)
 # mini expansion couse task too easy
 W_exp <- matrix(0, nrow = N_subj, ncol = 4)
 
