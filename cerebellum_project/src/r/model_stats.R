@@ -46,6 +46,19 @@ pred_matrix_m012 <- as_draws_matrix(m012$draws("pred_sw"))
 # median probs
 vopt_preds <- vopt$summary("pred_sw", median)
 m012_preds <- m012$summary("pred_sw", median)
+
+if (nrow(vopt_preds) != nrow(dat_raw)) {
+  cat("WARNING: Model predictions (", nrow(vopt_preds), ") do not match raw data rows (", nrow(dat_raw), ")!
+")
+  if (file.exists("../../data/processed/behavioral_sample.rds")) {
+    cat("Loading behavioral_sample.rds instead...
+")
+    dat_raw <- read_rds("../../data/processed/behavioral_sample.rds")
+  } else {
+    stop("Cannot align predictions. Please run the full stan_model_fit.R or save the sample dataset.")
+  }
+}
+
 dat_raw$pred_sw_vopt <- vopt_preds$median
 dat_raw$pred_sw_m012 <- m012_preds$median
 
