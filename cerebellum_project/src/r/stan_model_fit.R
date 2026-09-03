@@ -33,6 +33,7 @@ setwd(here())
 
 cat("DATA PROC\n")
 dat_raw <- read_csv("../../data/raw/behavioral_compilate.csv") %>%
+  arrange(participant_id, nt) %>%
   group_by(participant_id) %>%
   mutate(
     stay_switch = if_else(
