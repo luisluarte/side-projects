@@ -18,7 +18,7 @@ functions {
       vector[4] W_exp_s = to_vector(W_exp[s, 1:4]); 
       vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
-      real v_ctx_s = v_ctx[s];
+      real v_s = v_ctx[s];
       real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw[s]);
       real delta_max = 1.0 / phys_a_base;
       real tnd_s = tnd[s];
@@ -58,7 +58,7 @@ functions {
         
         if (t > start_idx[s]) {
              if (ch > 0 && rt[t] > 0.0) {
-                 real veff_raw = (v_ctx_s * Q_diff) + (w_cb_s * Cb_diff);
+                 real veff_raw = v_s * Q_diff;
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
                  pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
              }
@@ -193,7 +193,7 @@ generated quantities {
       vector[4] W_exp_s = to_vector(W_exp[s, 1:4]);
       vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
-      real v_ctx_s = v_ctx[s];
+      real v_s = v_ctx[s];
       real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw[s]);
       real delta_max = 1.0 / phys_a_base;
       real tnd_s = tnd[s];
@@ -234,7 +234,7 @@ generated quantities {
         if (t > start_idx[s]) {
              int prev_ch = resp[t-1];
              if (ch > 0 && rt[t] > 0.0) {
-                 real veff_raw = (v_ctx_s * Q_diff) + (w_cb_s * Cb_diff);
+                 real veff_raw = v_s * Q_diff;
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
                  log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
                  
