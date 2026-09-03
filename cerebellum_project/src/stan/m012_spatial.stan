@@ -18,7 +18,7 @@ functions {
       vector[4] W_exp_s = to_vector(W_exp[s, 1:4]); 
       vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
-      real v_s = v_ctx[s];
+      real v_ctx_s = v_ctx[s];
       real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw[s]);
       real delta_max = 1.0 / phys_a_base;
       real tnd_s = tnd[s];
@@ -193,7 +193,7 @@ generated quantities {
       vector[4] W_exp_s = to_vector(W_exp[s, 1:4]);
       vector[4] inv_W_exp = inv_frac_alpha .* W_exp_s;
       
-      real v_s = v_ctx[s];
+      real v_ctx_s = v_ctx[s];
       real phys_a_base = 0.11 + 3.0 * inv_logit(a_base_raw[s]);
       real delta_max = 1.0 / phys_a_base;
       real tnd_s = tnd[s];
