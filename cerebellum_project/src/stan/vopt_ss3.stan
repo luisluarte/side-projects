@@ -9,7 +9,6 @@ functions {
                    vector a_base_raw,
                    vector tnd,
                    vector v_ctx,
-                   vector w_bias_raw,
                    vector aw,
                    vector al,
                    vector w_ctx,
@@ -24,7 +23,6 @@ functions {
       real aw_s = aw[s];
       real al_s = al[s];
       real v_s = v_ctx[s];
-      real w_start = inv_logit(w_bias_raw[s]);
       real w_ctx_s = w_ctx[s];
       real beta_mis_s = beta_mismatch[s];
 
@@ -41,8 +39,7 @@ functions {
              if (ch > 0 && rt[t] > 0.0) {
                  real veff_raw = v_s * Q_diff;
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
-                 real w_eff = (ch == 1) ? w_start : (1.0 - w_start);
-                 pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+                 pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
              }
           }
         
@@ -86,8 +83,7 @@ transformed parameters {
   vector[N_subj] a_base_raw;
   vector[N_subj] tnd;
   vector[N_subj] v_ctx;
-  vector[N_subj] w_bias_raw;
-  vector[N_subj] aw;
+    vector[N_subj] aw;
   vector[N_subj] al;
   vector[N_subj] w_ctx;
   vector[N_subj] beta_mismatch;
@@ -97,8 +93,7 @@ transformed parameters {
     real tnd_cap = fmin(min_rt[s] - 0.05, 3.69);
     tnd[s] = 0.01 + (tnd_cap - 0.01) * inv_logit(theta_unc[2] + sigma[2] * z[2, s]);
     v_ctx[s] = 18.51 * inv_logit(theta_unc[3] + sigma[3] * z[3, s]);
-    w_bias_raw[s] = theta_unc[8] + sigma[8] * z[8, s];
-    aw[s] = inv_logit(theta_unc[4] + sigma[4] * z[4, s]);
+        aw[s] = inv_logit(theta_unc[4] + sigma[4] * z[4, s]);
     al[s] = inv_logit(theta_unc[5] + sigma[5] * z[5, s]);
     w_ctx[s] = exp(theta_unc[6] + sigma[6] * z[6, s]);
     beta_mismatch[s] = exp(theta_unc[7] + sigma[7] * z[7, s]);
@@ -112,7 +107,7 @@ model {
 
   target += reduce_sum(partial_sum, seq_subj, grainsize, 
                        start_idx, end_idx, resp, reward, rt, 
-                       a_base_raw, tnd, v_ctx, w_bias_raw, aw, al, w_ctx, beta_mismatch);
+                       a_base_raw, tnd, v_ctx, aw, al, w_ctx, beta_mismatch);
 }
 generated quantities {
   vector[N_trials] log_lik;
@@ -131,7 +126,6 @@ generated quantities {
       real aw_s = aw[s];
       real al_s = al[s];
       real v_s = v_ctx[s];
-      real w_start = inv_logit(w_bias_raw[s]);
       real w_ctx_s = w_ctx[s];
       real beta_mis_s = beta_mismatch[s];
 
@@ -149,13 +143,12 @@ generated quantities {
              if (ch > 0 && rt[t] > 0.0) {
                  real veff_raw = v_s * Q_diff;
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
-                 real w_eff = (ch == 1) ? w_start : (1.0 - w_start);
-                 log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, w_eff, veff);
+                 log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
                  
                  if (veff_raw == 0.0) {
-                     pred_sw[t] = w_start;
+                     pred_sw[t] = 0.5;
                  } else {
-                     real p_left = (exp(-2.0 * veff_raw * a_dyn * w_start) - 1.0) / (exp(-2.0 * veff_raw * a_dyn) - 1.0);
+                     real p_left = (exp(-veff_raw * a_dyn) - 1.0) / (exp(-2.0 * veff_raw * a_dyn) - 1.0);
                      if (prev_ch > 0) {
                          pred_sw[t] = (prev_ch == 1) ? (1.0 - p_left) : p_left;
                      } else {
