@@ -242,11 +242,7 @@ generated quantities {
                      pred_sw[t] = 0.5;
                  } else {
                      real p_left = (exp(-veff_raw * a_dyn) - 1.0) / (exp(-2.0 * veff_raw * a_dyn) - 1.0);
-                     if (prev_ch > 0) {
-                         pred_sw[t] = (prev_ch == 1) ? (1.0 - p_left) : p_left;
-                     } else {
-                         pred_sw[t] = 0.5;
-                     }
+                     pred_sw[t] = p_left;
                  }
              }
           }

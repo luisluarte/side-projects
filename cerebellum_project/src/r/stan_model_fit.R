@@ -66,12 +66,15 @@ subj <- as.numeric(
     dat %>% pull(participant_id)
   )
 )
-# stay = 1; switch = 2
+# switch = 1; stay = 2
 resp <- dat %>%
-  pull(Resp) %>%
-  {
-	  ifelse(. %in% c(1, 2), ., -999)
-  }
+  mutate(Meta_Boundary = case_when(
+    nt == 1 ~ -999,
+    Resp %in% c(1, 2) & lag(Resp) %in% c(1, 2) & Resp != lag(Resp) ~ 1,
+    Resp %in% c(1, 2) & lag(Resp) %in% c(1, 2) & Resp == lag(Resp) ~ 2,
+    TRUE ~ -999
+  )) %>%
+  pull(Meta_Boundary)
 # reward
 reward <- dat %>% pull(reward)
 rt <- dat %>% pull(rt)
