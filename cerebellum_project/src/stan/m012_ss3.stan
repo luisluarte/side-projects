@@ -69,7 +69,7 @@ functions {
         real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
         real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
-        real Cb_diff = cb0 - cb1; 
+        real Cb_diff = (cb0 - cb1) / 8.0; 
         real M_align = tanh(w_cb_s * Cb_diff) * tanh(w_ctx_s * Q_diff);
         real caution = log1p_exp(-10.0 * M_align) * 0.1;
         
@@ -247,7 +247,7 @@ generated quantities {
         real cb0 = dot_product(S_mask[1:16], eff_z[1:16]);
         real cb1 = dot_product(S_mask[17:32], eff_z[17:32]);
         
-        real Cb_diff = cb0 - cb1;
+        real Cb_diff = (cb0 - cb1) / 8.0;
         real M_align = tanh(w_cb_s * Cb_diff) * tanh(w_ctx_s * Q_diff);
         real caution = log1p_exp(-10.0 * M_align) * 0.1;
         
