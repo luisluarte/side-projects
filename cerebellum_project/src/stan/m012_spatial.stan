@@ -58,7 +58,7 @@ functions {
         
         if (t > start_idx[s]) {
              if (ch > 0 && rt[t] > 0.0) {
-                 real veff_raw = v_s * Q_diff;
+                 real veff_raw = (v_ctx_s * Q_diff) + (w_cb_s * Cb_diff);
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
                  pt += wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
              }
@@ -234,7 +234,7 @@ generated quantities {
         if (t > start_idx[s]) {
              int prev_ch = resp[t-1];
              if (ch > 0 && rt[t] > 0.0) {
-                 real veff_raw = v_s * Q_diff;
+                 real veff_raw = (v_ctx_s * Q_diff) + (w_cb_s * Cb_diff);
                  real veff = (ch == 1) ? veff_raw : -veff_raw;
                  log_lik[t] = wiener_lpdf(rt[t] | a_dyn, tnd_s, 0.5, veff);
                  
