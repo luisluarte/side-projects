@@ -187,6 +187,7 @@ model {
   theta_unc[1] ~ normal(0, 2);
   theta_unc[2] ~ normal(0, 2);
   theta_unc[3] ~ normal(0, 2);
+  theta_unc[12] ~ normal(0, 2);
   mu_res_raw ~ normal(0, 2);
   sigma ~ gamma(2, 5);
   to_vector(z) ~ std_normal();
