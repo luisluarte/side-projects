@@ -67,9 +67,9 @@ subj <- as.numeric(
 )
 # stay = 1; switch = 2
 resp <- dat %>%
-  pull(stay_switch) %>%
+  pull(Resp) %>%
   {
-    ifelse(. == "stay", 1, 2)
+	  ifelse(. %in% c(1, 2), ., -999)
   }
 # reward
 reward <- dat %>% pull(reward)
